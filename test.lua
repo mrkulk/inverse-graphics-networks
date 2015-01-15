@@ -2,9 +2,26 @@ require 'nn'
 require 'nngraph'
 require 'INTM'
 
+require('mobdebug').start()
+
 function intm_test()
+  imsize=10; h1size=20
+  input = nn.Identity()()
+  h1 = nn.Tanh()(nn.Linear(imsize,h1size)(input))
   
+  igeopose = nn.INTM(h1size, h1size)(h1)
+  cost = nn.Mean()(igeopose)
+  graph=nn.gModule({input},{igeopose})
+  
+  print('Forward pass ... ')
+  indata = torch.rand(imsize)
+  print(graph:forward(indata))
+  
+  print('Backward pass ...')
+  dummy_target = torch.rand(h1size)
+  print(graph:backward(indata, dummy_target))
 end
+
 
 function basic_torch()
   x1=nn.Linear(20,20)()
