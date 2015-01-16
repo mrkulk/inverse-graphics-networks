@@ -23,8 +23,9 @@ architecture:add(nn.SplitTable(1))
 -- Creating intm and acr's
 decoder = nn.ParallelTable()
 for ii=1,num_acrs do
-  decoder:add(nn.Linear(7,10))
+  decoder:add(nn.Linear(7,9))
 end
+architecture:add(decoder)
 
 --architecture:add(nn.ParallelTable():add(nn.Linear(7,10)):add(nn.Linear(7,10)))
 
