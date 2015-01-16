@@ -10,38 +10,19 @@ require 'dataset-mnist'
 num_acrs = 2
 imsize = 10
 h1size = 20
-outsize = 7 --affine variables
+outsize = 7*num_acrs --affine variables
 
 architecture = nn.Sequential()
+architecture:add(nn.Linear(imsize,h1size))
+architecture:add(nn.Tanh())
+architecture:add(nn.Linear(h1size, outsize))
 
--- encoder network
-input = nn.Identity()()
-h1 = nn.Linear(imsize,h1size)
-h1_act = nn.Tanh(h1)
-architecture:add(h1_act)
+architecture:add(nn.Reshape(num_acrs,7))
+architecture:add(nn.SplitTable(1))
 
+architecture:add(nn.ParallelTable():add(nn.Linear()):add())
 
--- decoder network
-intm_network = nn.Sequential()
-igeonArray = {}
-
-local t=nn.Sequential()
-tmp = nn.Linear(h1size, outsize)(h1_act)
-
---[[
-for i=1,num_acrs do
-  local t=nn.Sequential()
-  igeonArray[i] = nn.Linear(h1size,outsize)(h1)
-  t:add(igeonArray[i])
-  intm_network:add(t)
-end
-architecture:add(intm_network)
-]]
---]]
-
---network=nn.gModule({input},{igeonArray[1]})
-
---print(network:forward(torch.rand(imsize)))
--- graph.dot(network.fg,'Big MLP')
-
+print(architecture:forward(torch.rand(imsize))[1])
+  
+--input = nn.Identity()()
 
