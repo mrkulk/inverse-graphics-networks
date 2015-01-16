@@ -29,11 +29,11 @@ decoder = nn.ParallelTable()
 for ii=1,num_acrs do
   local t = nn.Sequential()
     t:add(nn.INTM(7,intm_out_dim)) --intm
-    t:add(nn.Linear(intm_out_dim,imsize)) --acr
+    t:add(nn.Linear(intm_out_dim,imsize)) --acr [TODO]
   decoder:add(t)
 end
 architecture:add(decoder)
-
+--TODO: Add OM and MSE Criterion
   
 print(architecture:forward(torch.rand(imsize))[1])
 print('Backward ...')
