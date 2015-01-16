@@ -20,9 +20,15 @@ architecture:add(nn.Linear(h1size, outsize))
 architecture:add(nn.Reshape(num_acrs,7))
 architecture:add(nn.SplitTable(1))
 
-architecture:add(nn.ParallelTable():add(nn.Linear()):add())
+-- Creating intm and acr's
+decoder = nn.ParallelTable()
+for ii=1,num_acrs do
+  decoder:add(nn.Linear(7,10))
+end
 
-print(architecture:forward(torch.rand(imsize))[1])
+--architecture:add(nn.ParallelTable():add(nn.Linear(7,10)):add(nn.Linear(7,10)))
+
+print(architecture:forward(torch.rand(imsize))[2])
   
 --input = nn.Identity()()
 
