@@ -5,12 +5,16 @@ require 'nn'
 require 'nngraph'
 require 'image'
 require 'dataset-mnist'
+require 'INTM'
+require 'math'
+require 'torch'
 
 --number of acr's
 num_acrs = 2
-imsize = 10
+imsize = 12
 h1size = 20
 outsize = 7*num_acrs --affine variables
+intm_out_dim = 10
 
 architecture = nn.Sequential()
 architecture:add(nn.Linear(imsize,h1size))
@@ -23,13 +27,15 @@ architecture:add(nn.SplitTable(1))
 -- Creating intm and acr's
 decoder = nn.ParallelTable()
 for ii=1,num_acrs do
-  decoder:add(nn.Linear(7,9))
+  local t = nn.Sequential()
+    t:add(nn.INTM(7,intm_out_dim)) --intm
+    t:add(nn.Linear(intm_out_dim,imsize)) --acr
+  decoder:add(t)
 end
 architecture:add(decoder)
 
---architecture:add(nn.ParallelTable():add(nn.Linear(7,10)):add(nn.Linear(7,10)))
-
-print(architecture:forward(torch.rand(imsize))[2])
   
---input = nn.Identity()()
+print(architecture:forward(torch.rand(imsize))[1])
+print('Backward ...')
+print(architecture:backward(torch.rand(imsize), torch.rand(2,imsize)))  
 
