@@ -12,22 +12,36 @@ imsize = 10
 h1size = 20
 outsize = 7 --affine variables
 
+architecture = nn.Sequential()
+
 -- encoder network
 input = nn.Identity()()
-h1 = nn.Tanh()(nn.Linear(imsize,h1size)(input))
+h1 = nn.Linear(imsize,h1size)
+h1_act = nn.Tanh(h1)
+architecture:add(h1_act)
+
 
 -- decoder network
+intm_network = nn.Sequential()
 igeonArray = {}
+
+local t=nn.Sequential()
+tmp = nn.Linear(h1size, outsize)(h1_act)
+
+--[[
 for i=1,num_acrs do
+  local t=nn.Sequential()
   igeonArray[i] = nn.Linear(h1size,outsize)(h1)
+  t:add(igeonArray[i])
+  intm_network:add(t)
 end
+architecture:add(intm_network)
+]]
+--]]
 
---intm
+--network=nn.gModule({input},{igeonArray[1]})
 
-
-graph=nn.gModule({input},{igeonArray[1]})
-
-print(graph:forward(torch.rand(imsize)))
-
+--print(network:forward(torch.rand(imsize)))
+-- graph.dot(network.fg,'Big MLP')
 
 

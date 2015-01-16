@@ -5,11 +5,11 @@ require 'INTM'
 require('mobdebug').start()
 
 function intm_test()
-  imsize=10; h1size=20
+  imsize=10; h1size=20; igeo_outsize=7;
   input = nn.Identity()()
   h1 = nn.Tanh()(nn.Linear(imsize,h1size)(input))
   
-  igeopose = nn.INTM(h1size, h1size)(h1)
+  igeopose = nn.INTM(h1size, igeo_outsize)(h1)
   cost = nn.Mean()(igeopose)
   graph=nn.gModule({input},{igeopose})
   
@@ -18,7 +18,7 @@ function intm_test()
   print(graph:forward(indata))
   
   print('Backward pass ...')
-  dummy_target = torch.rand(h1size)
+  dummy_target = torch.rand(igeo_outsize)
   print(graph:backward(indata, dummy_target))
 end
 

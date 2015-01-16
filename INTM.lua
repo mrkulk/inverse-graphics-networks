@@ -8,7 +8,7 @@ function INTM:__init(input_dim, output_dim)
 end
  
 function INTM:updateOutput(input)
-  self.output = input*10
+  self.output = input[{{1,self.output_dim}}]*10
   return self.output
 end
  
