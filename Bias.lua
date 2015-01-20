@@ -3,7 +3,7 @@ local Bias, parent = torch.class('nn.Bias', 'nn.Module')
 function Bias:__init(outputSize)
   parent.__init(self)
   self.output = torch.Tensor(outputSize)
-  
+
   self.bias = torch.Tensor(outputSize)
   self.gradBias = torch.Tensor(outputSize)
 end
@@ -23,7 +23,7 @@ function Bias:accGradParameters(input, gradOutput, scale)
   self.gradBias:add(scale, gradOutput)
 end
 
-function Bias:updateParameters(learningRate)  
+function Bias:updateParameters(learningRate)
   self.bias:add(-learningRate, self.gradBias)
 end
 

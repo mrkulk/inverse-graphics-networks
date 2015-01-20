@@ -10,8 +10,10 @@ end
 
 
 function ACR:updateOutput(input)
-  local template = input[1]
-  local pose = input[2]
+  local template = input[1]:reshape(math.sqrt(input[1]:size()[1]), math.sqrt(input[1]:size()[1]))
+  local iGeoPose = input[2]
+  local pose = iGeoPose[{{1,9}}]:reshape(3,3)
+  local intensity = iGeoPose[{{10}}]
 
   for output_x = 1, self.output:size()[1] do
     for output_y = 1, self.output:size()[2] do
@@ -23,16 +25,19 @@ function ACR:updateOutput(input)
                                                 template_coords[2])
     end
   end
+  self.output = self.output * intensity[1]
   return self.output
 end
 
 function ACR:updateGradInput(input, gradOutput)
-  template = input[1]
-  pose = input[2]
+  local template = input[1]:reshape(math.sqrt(input[1]:size()[1]), math.sqrt(input[1]:size()[1]))
+  local iGeoPose = input[2]
+  local pose = iGeoPose[{{1,9}}]:reshape(3,3)
+  local intensity = iGeoPose[{{10}}]
 
   self.gradTemplate = self.gradTemplate or torch.Tensor(template:size())
   self.gradTemplate:fill(0)
-  self.gradPose = self.gradPose or torch.Tensor(pose:size())
+  self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
   for output_x = 1, self.output:size()[1] do
@@ -59,8 +64,19 @@ function ACR:updateGradInput(input, gradOutput)
       -- calculate the derivatives for the template
       x_vec = torch.Tensor({x_low_coeff, x_high_coeff})
       y_vec = torch.Tensor({y_low_coeff, y_high_coeff})
-      -- addr computes the outer product between two vectors, scales it, and adds to a matrix
-      self.gradTemplate[{{x_low, x_high}, {y_low, y_high}}]:addr(gradOutput[output_x][output_y], x_vec, y_vec)
+
+      -- outer product
+      dOutdPose = torch.ger(x_vec, y_vec)
+      for i, x in ipairs({x_low, x_high}) do
+        for j, y in ipairs({y_low, y_high}) do
+            if x >= 1 and x <= template:size()[1]
+              and y >= 1 and y <= template:size()[2] then
+              self.gradTemplate[x][y] = self.gradTemplate[x][y] + dOutdPose[i][j]
+            end
+        end
+      end
+
+      -- self.gradTemplate[{{x_low, x_high}, {y_low, y_high}}]:addr(gradOutput[output_x][output_y], )
 
 
       -- calculate the derivatives for the pose
@@ -82,7 +98,11 @@ function ACR:updateGradInput(input, gradOutput)
       self.gradPose[2][3] = self.gradPose[2][3] + gradOutput[output_x][output_y] * getTemplateValue(template, x_high, y_high)*(pose[1][3] - x_low + pose[1][1]*output_x + pose[1][2]*output_y) - getTemplateValue(template, x_low, y_high)*(pose[1][3] - x_high + pose[1][1]*output_x + pose[1][2]*output_y) - getTemplateValue(template, x_high, y_low)*(pose[1][3] - x_low + pose[1][1]*output_x + pose[1][2]*output_y) + getTemplateValue(template, x_low, y_low)*(pose[1][3] - x_high + pose[1][1]*output_x + pose[1][2]*output_y)
     end
   end
-
+  self.gradTemplate = self.gradTemplate * intensity[1]
+  self.gradPose = self.gradPose * intensity[1]
+  self.gradPose = self.gradPose:reshape(9)
+  self.gradPose:resize(10)
+  self.gradPose[10] = gradOutput:sum()
   self.gradInput = {self.gradTemplate, self.gradPose}
 
   -- if self.gradInput:nElement() == 0 then
@@ -91,9 +111,9 @@ function ACR:updateGradInput(input, gradOutput)
   return self.gradInput
 end
 
-function getTemplateGradient(template, pose, output_x, output_y)
+-- function getTemplateGradient(template, pose, output_x, output_y)
 
-end
+-- end
 
 function getTemplateValue(template, template_x, template_y)
   template_x_size = template:size()[1] + 1
