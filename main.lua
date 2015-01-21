@@ -12,14 +12,34 @@ require 'INTM'
 require 'Bias'
 require 'ACR'
 
+
+function getDigitSet(digit)
+  local trainData = mnist.loadTrainSet(60000, {32,32})
+  local digitSet = {_indices = {}, _raw = trainData}
+  for i = 1, trainData:size() do
+    if trainData[i][2][digit + 1] == 1 then
+      table.insert(digitSet._indices, i)
+    end
+  end
+  setmetatable(digitSet, {__index = function (tbl,  key)
+      return {tbl._raw[tbl._indices[key]][1][1],
+              tbl._raw[tbl._indices[key]][2]}
+    end})
+  function digitSet:size() return #digitSet._indices end
+  return digitSet
+end
+
+trainset = getDigitSet(1)
+
 --number of acr's
 num_acrs = 9
-image_width = 28
+image_width = 32
 h1size = 2000
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
 
 architecture = nn.Sequential()
+architecture:add(nn.Reshape(image_width * image_width))
 architecture:add(nn.Linear(image_width * image_width,h1size))
 architecture:add(nn.Tanh())
 architecture:add(nn.Linear(h1size, outsize))
@@ -53,29 +73,44 @@ architecture:add(nn.Sum(1))
 architecture:add(nn.Log())
 architecture:add(nn.Mul(1/100))
 
-for i = 1, 10 do
-  print "Forward ..."
-  architecture:forward(torch.rand(image_width * image_width))
-  -- print(res)
 
-  print('Backward ...')
-  architecture:backward(torch.rand(image_width * image_width), torch.rand(image_width ,image_width))
-end
+-- for i = 1, 10 do
+--   print "Forward ..."
+--   architecture:forward(torch.rand(image_width * image_width))
+--   -- print(res)
 
-function getDigitSet(digit)
-  local trainData = mnist.loadTrainSet(60000, {32,32})
-  local digitSet = {_indices = {}, _raw = trainData}
-  for i = 1, trainData:size() do
-    if trainData[i][2][digit + 1] == 1 then
-      table.insert(digitSet._indices, i)
-    end
+--   print('Backward ...')
+--   architecture:backward(torch.rand(image_width * image_width), torch.rand(image_width ,image_width))
+-- end
+
+for i = 1, trainset.size() do
+  print("forward "..i)
+  local recon = architecture:forward(trainset[i][1])
+
+  print("backward "..i)
+  architecture:backward(trainset[i][1], trainset[i][1])
+
+  if i % 100 == 0 then
+    image.save("recon_"..i..".png", recon)
+    image.save("truth_"..i..".png", trainset[i][1])
   end
-  setmetatable(digitSet, {__index = function (tbl,  key)
-      return tbl._raw[tbl._indices[key]]
-    end})
-  function digitSet:size() return #digitSet._indices end
-  return digitSet
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
