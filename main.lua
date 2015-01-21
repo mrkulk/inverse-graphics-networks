@@ -1,5 +1,4 @@
 -- Unsupervised Capsule Deep Network
--- require('mobdebug').start()
 
 require 'cutorch'
 require 'cunn'
@@ -13,8 +12,18 @@ require 'INTM'
 require 'Bias'
 require 'ACR'
 
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text('Run this bad boy.')
+cmd:text()
+cmd:text('Options')
+cmd:option('--gpu',false,'use the GPU for the encoder')
+cmd:option('--threads', 4, 'how many threads to use')
+cmd:text()
+params = cmd:parse(arg)
+
 --torch.setdefaulttensortype('torch.CudaTensor')
-torch.setnumthreads(8)
+torch.setnumthreads(params.threads)
 
 function getDigitSet(digit)
   local trainData = mnist.loadTrainSet(60000, {32,32})
@@ -41,16 +50,20 @@ h1size = 2000
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
 
-encoder = nn.Sequential()
 architecture = nn.Sequential()
-architecture:add(nn.Copy('torch.FloatTensor', 'torch.CudaTensor'))
+encoder = nn.Sequential()
+encoder:add(nn.Reshape(image_width * image_width))
 encoder:add(nn.Linear(image_width * image_width,h1size))
 encoder:add(nn.Tanh())
 encoder:add(nn.Linear(h1size, outsize))
-encoder:cuda()
-architecture:add(encoder)
-architecture:add(nn.Copy('torch.CudaTensor', 'torch.DoubleTensor'))
 
+if params.gpu then
+  architecture:add(nn.Copy('torch.FloatTensor', 'torch.CudaTensor'))
+  encoder:cuda()
+  architecture:add(nn.Copy('torch.CudaTensor', 'torch.DoubleTensor'))
+else
+  architecture:add(encoder)
+end
 
 architecture:add(nn.Reshape(num_acrs,7))
 --architecture:add(nn.SplitTable(1))
@@ -82,28 +95,25 @@ architecture:add(nn.Log())
 architecture:add(nn.Mul(1/100))
 
 
--- for i = 1, 10 do
---   print "Forward ..."
---   architecture:forward(torch.rand(image_width * image_width))
---   -- print(res)
 
---   print('Backward ...')
---   architecture:backward(torch.rand(image_width * image_width), torch.rand(image_width ,image_width))
--- end
-
-for i = 1, trainset.size() do
-  print("forward "..i)
-  local recon = architecture:forward(trainset[i][1])
-
-  print("backward "..i)
-  architecture:backward(trainset[i][1], trainset[i][1])
-
-  if i % 100 == 0 then
-    image.save("recon_"..i..".png", recon)
-    image.save("truth_"..i..".png", trainset[i][1])
+criterion = nn.MSECriterion()
+--
+for i = 1, 300 do
+  print("error "..i..": " .. criterion:forward(architecture:forward(trainset[i][1]), trainset[i][1]) )
+  
+  -- reshape to add an extra dimension for image and clamp so image will interpret correctly
+  local out = torch.clamp(torch.reshape(architecture.output, 1,32,32), 0,1)
+  if i % 10 == 0 then
+    image.save("test_images/recon_"..i..".png", out)
+    image.save("test_images/truth_"..i..".png", trainset[i][1])
   end
-end
+  
+  architecture:zeroGradParameters()
+  architecture:backward(trainset[i][1], criterion:backward(architecture.output, trainset[i][1]))
+  architecture:updateParameters(0.00002)
 
+end
+--
 
 
 
