@@ -17,7 +17,7 @@ transform =
 [ s1*sin(theta),  s2*(cos(theta) + z*sin(theta)), s1*t1*sin(theta) + s2*t2*(cos(theta) + z*sin(theta))]
 [             0,                               0,                                                    1]
 
-input = [s1, s2, t1, t2, z, theta, intensity]
+input = [t1, t2, s1,s2, z, theta, intensity]
 --]]
 
 function INTM:updateOutput(input)
