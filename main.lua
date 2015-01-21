@@ -1,17 +1,5 @@
 -- Unsupervised Capsule Deep Network
 
-require 'cutorch'
-require 'cunn'
-require 'nngraph'
-require 'image'
-require 'math'
-require 'torch'
-
-require 'dataset-mnist'
-require 'INTM'
-require 'Bias'
-require 'ACR'
-
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Run this bad boy.')
@@ -24,6 +12,21 @@ params = cmd:parse(arg)
 
 --torch.setdefaulttensortype('torch.CudaTensor')
 torch.setnumthreads(params.threads)
+
+require 'image'
+require 'math'
+
+if params.gpu then
+  require 'cutorch'
+  require 'cunn'
+else
+  require 'nn'
+end
+
+require 'dataset-mnist'
+require 'INTM'
+require 'Bias'
+require 'ACR'
 
 function getDigitSet(digit)
   local trainData = mnist.loadTrainSet(60000, {32,32})
@@ -94,26 +97,44 @@ architecture:add(nn.Sum(1))
 architecture:add(nn.Log())
 architecture:add(nn.Mul(1/100))
 
-
-
 criterion = nn.MSECriterion()
---
+
+function saveACRs(step, model)
+  acrs = model:findModules('nn.ACR')
+  padding = 5
+  acrs_across = math.ceil(math.sqrt(#acrs))
+  acrs_down = math.ceil(#acrs / acrs_across)
+
+  acr_output = torch.zeros(
+                    image_width * acrs_down + (acrs_down - 1) * padding,
+                    image_width * acrs_across + (acrs_across - 1) * padding)
+  for j, acr in ipairs(acrs) do
+    x_index = math.floor((j - 1) / acrs_down)
+    x_location = (x_index) * image_width + x_index * padding
+    y_index = math.floor((j - 1) % acrs_down)
+    y_location = (y_index) * image_width + y_index * padding
+    acr_output[{{x_location + 1, x_location + image_width},
+                {y_location + 1, y_location + image_width}}] = acr.output
+  end
+  acr_output = acr_output:reshape(1, acr_output:size()[1], acr_output:size()[2])
+  image.save("test_images/step_"..step.."_acrs.png", acr_output)
+end
+
 for i = 1, 300 do
   print("error "..i..": " .. criterion:forward(architecture:forward(trainset[i][1]), trainset[i][1]) )
-  
-  -- reshape to add an extra dimension for image and clamp so image will interpret correctly
-  local out = torch.clamp(torch.reshape(architecture.output, 1,32,32), 0,1)
-  if i % 10 == 0 then
-    image.save("test_images/recon_"..i..".png", out)
-    image.save("test_images/truth_"..i..".png", trainset[i][1])
+  local out = torch.clamp(torch.reshape(architecture.output, 1,image_width,image_width), 0,1)
+
+  if i % 1 == 0 then
+    saveACRs(i, architecture)
+    image.save("test_images/step_"..i.."_recon.png", out)
+    image.save("test_images/step_"..i.."_truth.png", trainset[i][1])
   end
-  
+
   architecture:zeroGradParameters()
   architecture:backward(trainset[i][1], criterion:backward(architecture.output, trainset[i][1]))
   architecture:updateParameters(0.00002)
 
 end
---
 
 
 
