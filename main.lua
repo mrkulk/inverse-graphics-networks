@@ -1,7 +1,8 @@
 -- Unsupervised Capsule Deep Network
 -- require('mobdebug').start()
 
-require 'nn'
+require 'cutorch'
+require 'cunn'
 require 'nngraph'
 require 'image'
 require 'dataset-mnist'
@@ -11,6 +12,9 @@ require 'torch'
 require 'Bias'
 require 'ACR'
 
+--torch.setdefaulttensortype('torch.CudaTensor')
+torch.setnumthreads(8)
+
 --number of acr's
 num_acrs = 9
 image_width = 28
@@ -18,10 +22,15 @@ h1size = 2000
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
 
+encoder = nn.Sequential()
 architecture = nn.Sequential()
-architecture:add(nn.Linear(image_width * image_width,h1size))
-architecture:add(nn.Tanh())
-architecture:add(nn.Linear(h1size, outsize))
+architecture:add(nn.Copy('torch.FloatTensor', 'torch.CudaTensor'))
+encoder:add(nn.Linear(image_width * image_width,h1size))
+encoder:add(nn.Tanh())
+encoder:add(nn.Linear(h1size, outsize))
+encoder:cuda()
+architecture:add(encoder)
+architecture:add(nn.Copy('torch.CudaTensor', 'torch.DoubleTensor'))
 
 architecture:add(nn.Reshape(num_acrs,7))
 --architecture:add(nn.SplitTable(1))
@@ -38,7 +47,7 @@ for ii=1,num_acrs do
     acr_in:add(nn.Bias(11*11))
     acr_in:add(nn.INTM(7,intm_out_dim))
   acr_wrapper:add(acr_in)
-  acr_wrapper:add(nn.ACR(image_width)) --]]
+  acr_wrapper:add(nn.ACR(image_width))
   decoder:add(acr_wrapper)
 end
 
