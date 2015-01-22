@@ -201,7 +201,7 @@ function ACR:getTemplateValue(template, template_x, template_y)
   output_y = torch.floor(template_y + template_y_size / 2)
 
   res = torch.zeros(self.bsize)
-  for i = 1,bsize do
+  for i = 1,self.bsize do
     if output_x[i] < 1 or output_x[i] > template:size()[2]
       or output_y[i] < 1 or output_y[i] > template:size()[3] then
       res[i] = 0

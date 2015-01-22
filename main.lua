@@ -28,6 +28,7 @@ require 'dataset-mnist'
 require 'INTM'
 require 'Bias'
 require 'ACR'
+require 'ParallelParallel'
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
@@ -84,7 +85,7 @@ architecture:add(nn.Reshape(num_acrs,7))
 
 
 -- Creating intm and acr's
-decoder = nn.Parallel(2,2)
+decoder = nn.ParallelParallel(params.threads, 2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -149,7 +150,7 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 5 do
+for i = 1, 300 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))
@@ -162,11 +163,11 @@ for i = 1, 5 do
     image.save("test_images/step_"..i.."_recon.png", out)
     image.save("test_images/step_"..i.."_truth.png", batch[1])
   end
-
+--[[
   architecture:zeroGradParameters()
   architecture:backward(batch, criterion:backward(architecture.output, batch))
   architecture:updateParameters(0.000001)
-
+--]]
 end
 
 
