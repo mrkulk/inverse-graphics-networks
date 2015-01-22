@@ -10,6 +10,7 @@ cmd:option('--threads', 4, 'how many threads to use')
 cmd:text()
 params = cmd:parse(arg)
 -- params = {}
+
 --torch.setdefaulttensortype('torch.CudaTensor')
 torch.setnumthreads(params.threads)
 
@@ -61,7 +62,7 @@ image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 10
+bsize = 2
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
@@ -81,6 +82,7 @@ end
 architecture:add(nn.Reshape(num_acrs,7))
 --architecture:add(nn.SplitTable(1))
 
+
 -- Creating intm and acr's
 decoder = nn.Parallel(2,2)
 for ii=1,num_acrs do
@@ -94,7 +96,7 @@ for ii=1,num_acrs do
   acr_in:add(nn.INTM(bsize, 7,intm_out_dim))
   acr_wrapper:add(acr_in)
   acr_wrapper:add(nn.ACR(bsize, image_width))
-
+  
   decoder:add(acr_wrapper)
 end
 
@@ -102,11 +104,12 @@ architecture:add(decoder)
 architecture:add(nn.Reshape(num_acrs, image_width,image_width))
 
 
-architecture:add(nn.Mul(100))
+architecture:add(nn.MulConstant(100))
 architecture:add(nn.Exp())
 architecture:add(nn.Sum(2))
 architecture:add(nn.Log())
-architecture:add(nn.Mul(1/100))
+architecture:add(nn.MulConstant(1/100))
+
 
 criterion = nn.MSECriterion()
 
@@ -146,15 +149,18 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 20 do
+for i = 1, 5 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
+  --print(architecture:forward(batch))
   -- print(architecture.output)
+
+
   if i % 1 == 0 then
     local out = torch.clamp(torch.reshape(architecture.output[1], 1,image_width,image_width), 0,1)
     saveACRs(i, architecture)
     image.save("test_images/step_"..i.."_recon.png", out)
-    image.save("test_images/step_"..i.."_truth.png", batch[i])
+    image.save("test_images/step_"..i.."_truth.png", batch[1])
   end
 
   architecture:zeroGradParameters()
