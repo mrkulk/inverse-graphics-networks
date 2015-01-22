@@ -1,16 +1,50 @@
 -- Unsupervised Capsule Deep Network
--- require('mobdebug').start()
 
-require 'nn'
-require 'nngraph'
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text('Run this bad boy.')
+cmd:text()
+cmd:text('Options')
+cmd:option('--gpu',false,'use the GPU for the encoder')
+cmd:option('--threads', 4, 'how many threads to use')
+cmd:text()
+params = cmd:parse(arg)
+
+--torch.setdefaulttensortype('torch.CudaTensor')
+torch.setnumthreads(params.threads)
+
 require 'image'
 require 'math'
-require 'torch'
+
+if params.gpu then
+  require 'cutorch'
+  require 'cunn'
+else
+  require 'nn'
+end
 
 require 'dataset-mnist'
 require 'INTM'
 require 'Bias'
 require 'ACR'
+
+function getDigitSet(digit)
+  local trainData = mnist.loadTrainSet(60000, {32,32})
+  local digitSet = {_indices = {}, _raw = trainData}
+  for i = 1, trainData:size() do
+    if trainData[i][2][digit + 1] == 1 then
+      table.insert(digitSet._indices, i)
+    end
+  end
+  setmetatable(digitSet, {__index = function (tbl,  key)
+      return {tbl._raw[tbl._indices[key]][1][1],
+              tbl._raw[tbl._indices[key]][2]}
+    end})
+  function digitSet:size() return #digitSet._indices end
+  return digitSet
+end
+
+trainset = getDigitSet(1)
 
 --number of acr's
 num_acrs = 9
@@ -21,9 +55,19 @@ intm_out_dim = 10
 bsize = 3
 
 architecture = nn.Sequential()
-architecture:add(nn.Linear(image_width * image_width,h1size))
-architecture:add(nn.Tanh())
-architecture:add(nn.Linear(h1size, outsize))
+encoder = nn.Sequential()
+encoder:add(nn.Reshape(image_width * image_width))
+encoder:add(nn.Linear(image_width * image_width,h1size))
+encoder:add(nn.Tanh())
+encoder:add(nn.Linear(h1size, outsize))
+
+if params.gpu then
+  architecture:add(nn.Copy('torch.FloatTensor', 'torch.CudaTensor'))
+  encoder:cuda()
+  architecture:add(nn.Copy('torch.CudaTensor', 'torch.DoubleTensor'))
+else
+  architecture:add(encoder)
+end
 
 architecture:add(nn.Reshape(num_acrs,7))
 --architecture:add(nn.SplitTable(1))
@@ -41,6 +85,7 @@ for ii=1,num_acrs do
   acr_in:add(nn.INTM(bsize, 7,intm_out_dim))
   acr_wrapper:add(acr_in)
   acr_wrapper:add(nn.ACR(bsize, image_width))
+
   decoder:add(acr_wrapper)
 end
 
@@ -54,29 +99,70 @@ architecture:add(nn.Sum(2))
 architecture:add(nn.Log())
 architecture:add(nn.Mul(1/100))
 
-for i = 1, 10 do
-  print "Forward ..."
-  res=architecture:forward(torch.rand(bsize, image_width * image_width))
-  -- print(res)
+criterion = nn.MSECriterion()
 
-  print('Backward ...')
-  architecture:backward(torch.rand(bsize, image_width * image_width), torch.rand(bsize, image_width , image_width))
+function test_network()
+  for i = 1, 10 do
+    print "Forward ..."
+    res=architecture:forward(torch.rand(bsize, image_width * image_width))
+    -- print(res)
+
+    print('Backward ...')
+    architecture:backward(torch.rand(bsize, image_width * image_width), torch.rand(bsize, image_width , image_width))
 end
 
-function getDigitSet(digit)
-  local trainData = mnist.loadTrainSet(60000, {32,32})
-  local digitSet = {_indices = {}, _raw = trainData}
-  for i = 1, trainData:size() do
-    if trainData[i][2][digit + 1] == 1 then
-      table.insert(digitSet._indices, i)
-    end
+function saveACRs(step, model)
+  acrs = model:findModules('nn.ACR')
+  padding = 5
+  acrs_across = math.ceil(math.sqrt(#acrs))
+  acrs_down = math.ceil(#acrs / acrs_across)
+
+  acr_output = torch.zeros(
+                    image_width * acrs_down + (acrs_down - 1) * padding,
+                    image_width * acrs_across + (acrs_across - 1) * padding)
+  for j, acr in ipairs(acrs) do
+    x_index = math.floor((j - 1) / acrs_down)
+    x_location = (x_index) * image_width + x_index * padding
+    y_index = math.floor((j - 1) % acrs_down)
+    y_location = (y_index) * image_width + y_index * padding
+    acr_output[{{x_location + 1, x_location + image_width},
+                {y_location + 1, y_location + image_width}}] = acr.output
   end
-  setmetatable(digitSet, {__index = function (tbl,  key)
-      return tbl._raw[tbl._indices[key]]
-    end})
-  function digitSet:size() return #digitSet._indices end
-  return digitSet
+  acr_output = acr_output:reshape(1, acr_output:size()[1], acr_output:size()[2])
+  image.save("test_images/step_"..step.."_acrs.png", acr_output)
 end
+
+for i = 1, 300 do
+  print("error "..i..": " .. criterion:forward(architecture:forward(trainset[i][1]), trainset[i][1]) )
+  local out = torch.clamp(torch.reshape(architecture.output, 1,image_width,image_width), 0,1)
+
+  if i % 1 == 0 then
+    saveACRs(i, architecture)
+    image.save("test_images/step_"..i.."_recon.png", out)
+    image.save("test_images/step_"..i.."_truth.png", trainset[i][1])
+  end
+
+  architecture:zeroGradParameters()
+  architecture:backward(trainset[i][1], criterion:backward(architecture.output, trainset[i][1]))
+  architecture:updateParameters(0.00002)
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
