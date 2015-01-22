@@ -70,7 +70,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local runGPU = 1
+  local runGPU = 0
   
   if runGPU == 1 then
     print('Running GPU')
@@ -139,8 +139,7 @@ function ACR:updateGradInput(input, gradOutput)
         self.gradPose[{{},2,2}] = self.gradPose[{{},2,2}] + torch.cmul(gradOutput[{{},output_x,output_y}],(torch.cmul( self:getTemplateValue(template, x_high, y_high),(pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(self:getTemplateValue(template, x_low, y_high),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))))*output_y - ( torch.cmul(self:getTemplateValue(template, x_high, y_low),(pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(self:getTemplateValue(template, x_low, y_low),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)))*output_y
 
         self.gradPose[{{},2,3}] = self.gradPose[{{},2,3}] + torch.cmul(gradOutput[{{},output_x,output_y}], torch.cmul( self:getTemplateValue(template, x_high, y_high), (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))) - torch.cmul( self:getTemplateValue(template, x_low, y_high),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(self:getTemplateValue(template, x_high, y_low), (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) + torch.cmul(self:getTemplateValue(template, x_low, y_low), (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))
-      end -- CPU CODE ENDS HERE
-      
+      end
     end
   end
 
