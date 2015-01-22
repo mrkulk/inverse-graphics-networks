@@ -4,7 +4,7 @@ function Bias:__init(bsize, outputSize)
   parent.__init(self)
   self.output = torch.Tensor(bsize, outputSize)
   self.bsize = bsize
-  self.bias = torch.Tensor(bsize, outputSize)
+  self.bias = torch.rand(bsize, outputSize)
   self.gradBias = torch.Tensor(bsize, outputSize)
 end
 
