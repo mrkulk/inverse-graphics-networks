@@ -146,22 +146,22 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 20 do
-  batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
-  print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
-  -- print(architecture.output)
-  if i % 1 == 0 then
-    local out = torch.clamp(torch.reshape(architecture.output[1], 1,image_width,image_width), 0,1)
-    saveACRs(i, architecture)
-    image.save("test_images/step_"..i.."_recon.png", out)
-    image.save("test_images/step_"..i.."_truth.png", batch[i])
-  end
+-- for i = 1, 20 do
+--   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
+--   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
+--   -- print(architecture.output)
+--   if i % 1 == 0 then
+--     local out = torch.clamp(torch.reshape(architecture.output[1], 1,image_width,image_width), 0,1)
+--     saveACRs(i, architecture)
+--     image.save("test_images/step_"..i.."_recon.png", out)
+--     image.save("test_images/step_"..i.."_truth.png", batch[i])
+--   end
 
-  architecture:zeroGradParameters()
-  architecture:backward(batch, criterion:backward(architecture.output, batch))
-  architecture:updateParameters(0.000001)
+--   architecture:zeroGradParameters()
+--   architecture:backward(batch, criterion:backward(architecture.output, batch))
+--   architecture:updateParameters(0.000001)
 
-end
+-- end
 
 
 

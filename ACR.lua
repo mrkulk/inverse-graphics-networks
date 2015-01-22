@@ -74,11 +74,11 @@ function ACR:updateGradInput(input, gradOutput)
       template_x = template_x - 1/2
       template_y = template_y - 1/2
 
-      local x_high_coeff = torch.zeros(self.bsize)
+      local x_high_coeff = torch.Tensor(self.bsize)
       x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
       x_low_coeff  =  -x_high_coeff + 1
 
-      local y_high_coeff = torch.zeros(self.bsize)
+      local y_high_coeff = torch.Tensor(self.bsize)
       y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
       y_low_coeff  =  -y_high_coeff + 1
 
@@ -216,11 +216,11 @@ function ACR:getInterpolatedTemplateValue(template, template_x, template_y)
   template_x = template_x - 1/2
   template_y = template_y - 1/2
 
-  local x_high_coeff = torch.zeros(self.bsize)
+  local x_high_coeff = torch.Tensor(self.bsize)
   x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
   x_low_coeff  =  -x_high_coeff + 1
 
-  local y_high_coeff = torch.zeros(self.bsize)
+  local y_high_coeff = torch.Tensor(self.bsize)
   y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
   y_low_coeff  =  -y_high_coeff + 1
 
