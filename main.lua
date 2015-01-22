@@ -1,5 +1,6 @@
 -- Unsupervised Capsule Deep Network
 
+require 'torch'
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Run this bad boy.')
@@ -16,6 +17,7 @@ torch.setnumthreads(params.threads)
 
 require 'image'
 require 'math'
+
 
 if params.gpu then
   require 'cutorch'
