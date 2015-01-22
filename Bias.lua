@@ -1,14 +1,14 @@
 local Bias, parent = torch.class('nn.Bias', 'nn.Module')
 
-function Bias:__init(outputSize)
+function Bias:__init(bsize, outputSize)
   parent.__init(self)
-  self.output = torch.Tensor(outputSize)
-
-  self.bias = torch.Tensor(outputSize)
-  self.gradBias = torch.Tensor(outputSize)
+  self.output = torch.Tensor(bsize, outputSize)
+  self.bsize = bsize
+  self.bias = torch.Tensor(bsize, outputSize)
+  self.gradBias = torch.Tensor(bsize, outputSize)
 end
 
-function Bias:updateOutput()
+function Bias:updateOutput(input)
   self.output:copy(self.bias)
   return self.output
 end
