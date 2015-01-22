@@ -44,5 +44,11 @@ function basic_torch()
   print(grad[2])
 end
 
+function custom_cuda_kernels()
+  require("testcustomC")
+  print(square(1.414213598))
+  print(cube(5))
+end
 
-intm_test()
+custom_cuda_kernels()
+--intm_test()

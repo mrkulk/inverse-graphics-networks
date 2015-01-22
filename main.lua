@@ -1,5 +1,6 @@
 -- Unsupervised Capsule Deep Network
 
+require 'torch'
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Run this bad boy.')
@@ -16,6 +17,7 @@ torch.setnumthreads(params.threads)
 
 require 'image'
 require 'math'
+
 
 if params.gpu then
   require 'cutorch'
@@ -149,7 +151,7 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 5 do
+for i = 1, 1 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))
