@@ -6,7 +6,7 @@ function LL:new(nThreads, imports)
   imports = imports or {'nn'}
   self.nThreads = nThreads or 4
   self.__index = self
-  self.threads = Threads(nThreads,
+  self.threads = Threads(self.nThreads,
     function()
       torch.setnumthreads(1)
       for i = 1,#imports do

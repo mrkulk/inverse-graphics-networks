@@ -23,12 +23,10 @@ function ParallelParallel:updateOutput(input)
       return module:updateOutput(currentInput)
    end
    local outputs = self.ll:pmap_mut(self.modules, moses.bind(runModule, input))
-   -- print(self.modules)
 
    for i = 1, #outputs do
       local currentOutput = outputs[i]
       local outputSize = currentOutput:size(self.outputDimension)
-      -- self.modules[i].output = currentOutput
 
       if i == 1 then
          self.size:resize(currentOutput:dim()):copy(currentOutput:size())

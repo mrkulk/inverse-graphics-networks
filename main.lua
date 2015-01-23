@@ -63,7 +63,7 @@ end
 trainset = getDigitSet(1)
 
 --number of acr's
-num_acrs = 9
+num_acrs = 2
 image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
@@ -90,8 +90,8 @@ architecture:add(nn.Reshape(num_acrs,7))
 
 
 -- Creating intm and acr's
-decoder = nn.Parallel(2,2)
---decoder = nn.ParallelParallel(num_acrs, 2,2)
+-- decoder = nn.Parallel(2,2)
+decoder = nn.ParallelParallel(num_acrs, 2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))

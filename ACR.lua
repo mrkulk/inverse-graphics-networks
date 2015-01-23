@@ -1,44 +1,18 @@
 -- ACR module
 
-require 'xlua'
+-- require 'xlua'
 local ACR_helper = require 'ACR_helper'
 local ACR, Parent = torch.class('nn.ACR', 'nn.Module')
 
-
-local profile = xlua.Profiler()
-
+local Threads = require 'threads'
+local sdl = require 'sdl2'
+-- local profile = xlua.Profiler()
 
 function ACR:__init(bsize, output_width)
   Parent.__init(self)
   self.bsize = bsize
   self.output = torch.zeros(bsize, output_width, output_width)
 
-  local Threads = require 'threads'
-  local sdl = require 'sdl2'
-  local nthread = 8
-
-  sdl.init(0)
-
-  self.threads = Threads(nthread,
-     function()
-        gsdl = require 'sdl2'
-        ACR_helper = require 'ACR_helper'
-        math = require 'math'
-
-     end,
-     function(idx)
-        --print('starting a new thread/state number:', idx)
-        -- we copy here an upvalue of the main thread
-        -- grid_side = math.sqrt(njob+1)
-        -- output = _output
-        -- gradOutput = gradOutput
-        -- pose = pose
-        -- bsize = bsize
-        -- template=template
-        -- gradTemplate = _gradTemplate
-        -- gradPose = _gradPose
-     end
-  )
   --
 end
 
@@ -109,10 +83,34 @@ function ACR:updateGradInput(input, gradOutput)
     local gradTemplate = torch.Tensor(self.gradTemplate:size())
     local gradPose = torch.Tensor(self.gradPose:size())
 
+    local nthread = 8
+
+    sdl.init(0)
+
+    threads = Threads(nthread,
+       function()
+          gsdl = require 'sdl2'
+          ACR_helper = require 'ACR_helper'
+       end,
+       function(idx)
+          --print('starting a new thread/state number:', idx)
+          -- we copy here an upvalue of the main thread
+          -- grid_side = math.sqrt(njob+1)
+          -- output = _output
+          -- gradOutput = gradOutput
+          -- pose = pose
+          -- bsize = bsize
+          -- template=template
+          -- gradTemplate = _gradTemplate
+          -- gradPose = _gradPose
+       end
+    )
+
+
     -- now add jobs
     local jobdone = 0
     for jid=1,njob do
-       self.threads:addjob(
+       threads:addjob(
           -- the job callback
           function(jobdone)
              local grid_side = math.sqrt(njob+1)
@@ -150,9 +148,9 @@ function ACR:updateGradInput(input, gradOutput)
           jid -- argument
        )
     end
-    self.threads:synchronize()-- wait for all jobs to finish
+    threads:synchronize()-- wait for all jobs to finish
     --print(string.format('%d jobs done', jobdone))
-    -- self.threads:terminate()
+    threads:terminate()
 
   else
 
