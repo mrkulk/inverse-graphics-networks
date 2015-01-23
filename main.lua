@@ -68,7 +68,7 @@ image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 20
+bsize = 30
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
@@ -90,7 +90,8 @@ architecture:add(nn.Reshape(num_acrs,7))
 
 
 -- Creating intm and acr's
-decoder = nn.Parallel(2,2)--nn.ParallelParallel(params.threads, 2,2)
+decoder = nn.Parallel(2,2)
+--decoder = nn.ParallelParallel(num_acrs, 2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -155,7 +156,7 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 1 do
+for i = 1, 2 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))
@@ -164,9 +165,9 @@ for i = 1, 1 do
 
   if i % 1 == 0 then
     local out = torch.clamp(torch.reshape(architecture.output[1], 1,image_width,image_width), 0,1)
-    saveACRs(i, architecture)
-    image.save("test_images/step_"..i.."_recon.png", out)
-    image.save("test_images/step_"..i.."_truth.png", batch[1])
+    --saveACRs(i, architecture)
+    --image.save("test_images/step_"..i.."_recon.png", out)
+    --image.save("test_images/step_"..i.."_truth.png", batch[1])
   end
 
   architecture:zeroGradParameters()

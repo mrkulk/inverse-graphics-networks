@@ -8,6 +8,7 @@ function LL:new(nThreads, imports)
   self.__index = self
   self.threads = Threads(nThreads,
     function()
+      torch.setnumthreads(1)
       for i = 1,#imports do
         require(imports[i])
       end

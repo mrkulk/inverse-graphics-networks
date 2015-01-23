@@ -43,3 +43,5 @@ luac.out
 *.ipynb
 mnist.t7/
 test_images/
+
+.DS_Store
