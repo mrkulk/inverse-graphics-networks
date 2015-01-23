@@ -17,11 +17,12 @@ end
 function ParallelParallel:updateOutput(input)
    local nModule=input:size(self.inputDimension)
 
+   local inputDimension = self.inputDimension
    local runModule = function(inputTensor, i, module)
-      local currentInput = inputTensor:select(self.inputDimension,i)
+      local currentInput = inputTensor:select(inputDimension,i)
       return module:updateOutput(currentInput)
    end
-   local outputs = self.ll:pmap(self.modules, moses.bind(runModule, input))
+   local outputs = self.ll:pmap_mut(self.modules, moses.bind(runModule, input))
 
    for i = 1, #outputs do
       local currentOutput = outputs[i]
@@ -50,16 +51,26 @@ function ParallelParallel:updateGradInput(input, gradOutput)
    local nModule=input:size(self.inputDimension)
    self.gradInput:resizeAs(input)
 
+   local inputDimension = self.inputDimension
+   local outputDimension = self.outputDimension
    local offset = 1
-   for i=1,nModule do
-      local module=self.modules[i]
-      local currentInput = input:select(self.inputDimension,i)
+   local runModule = function(inputTensor, gradOutputTensor, i, module)
+      local currentInput = inputTensor:select(inputDimension,i)
       local currentOutput = module.output
-      local outputSize = currentOutput:size(self.outputDimension)
-      local currentGradOutput = gradOutput:narrow(self.outputDimension, offset, outputSize)
+      local outputSize = currentOutput:size(outputDimension)
+      local currentGradOutput = gradOutputTensor:narrow(outputDimension, offset, outputSize)
 
-      local currentGradInput = module:updateGradInput(currentInput, currentGradOutput)
+      return module:updateGradInput(currentInput, currentGradOutput)
+   end
 
+   local gradInputs = self.ll:pmap_mut(self.modules, moses.bind(moses.bind(runModule, input), gradOutput))
+   -- print(self.modules)
+
+   for i=1,nModule do
+      local currentGradInput = gradInputs[i]
+      local module = self.modules[i]
+      local currentOutput = module.output
+      local outputSize = currentOutput:size(outputDimension)
       self.gradInput:select(self.inputDimension,i):copy(currentGradInput)
       offset = offset + outputSize
    end

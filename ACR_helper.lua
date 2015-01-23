@@ -11,7 +11,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
     --need to add them outside the thread as threads may override these variables causing funny errors
     gradTemplate = torch.zeros(_gradTemplate:size()); gradPose = torch.zeros(_gradPose:size())
   end
-  
+
   for output_x = start_x, endhere_x do
     for output_y = start_y, endhere_y do
       -- calculate the correspondence between template and output

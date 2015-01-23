@@ -1,23 +1,25 @@
 -- ACR module
 
-require 'xlua'
+-- require 'xlua'
 local ACR_helper = require 'ACR_helper'
 local ACR, Parent = torch.class('nn.ACR', 'nn.Module')
 
-
-local profile = xlua.Profiler()
-
+local Threads = require 'threads'
+local sdl = require 'sdl2'
+-- local profile = xlua.Profiler()
 
 function ACR:__init(bsize, output_width)
   Parent.__init(self)
   self.bsize = bsize
   self.output = torch.zeros(bsize, output_width, output_width)
+
+  --
 end
 
 
 function ACR:updateOutput(input)
   --profile:start('ACR_updateOutput')
-  
+
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
   local iGeoPose = input[2]
@@ -50,16 +52,16 @@ function ACR:updateOutput(input)
 
   --self.output = self.output * intensity[1]
   --profile:lap('ACR_updateOutput')
-  
+
   --profile:printAll()
-  
+
   return self.output
 end
 
 
 function ACR:updateGradInput(input, gradOutput)
   print('ACR grad')
-  
+
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
   local iGeoPose = input[2]
@@ -69,68 +71,68 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradTemplate = self.gradTemplate or torch.Tensor(template:size())
   self.gradTemplate:fill(0)
   self.gradPose = torch.Tensor(pose:size())
-  self.gradPose:fill(0) 
+  self.gradPose:fill(0)
 
   local runMulticore = 1
-  
+
   if runMulticore == 1 then
     print('Running Multicore ... ')
     -- GPU CODE ENDS HERE
-    local Threads = require 'threads'
-    local sdl = require 'sdl2'
-    local nthread = 8
     local njob = 4*4-1 --divide image into 4x4 block
-    local _output = torch.Tensor(self.output:size()):copy(self.output)
-    local _gradTemplate = torch.Tensor(self.gradTemplate:size())
-    local _gradPose = torch.Tensor(self.gradPose:size())
-    
+    local output = torch.Tensor(self.output:size()):copy(self.output)
+    local gradTemplate = torch.Tensor(self.gradTemplate:size())
+    local gradPose = torch.Tensor(self.gradPose:size())
+
+    local nthread = 8
+
     sdl.init(0)
 
-    local threads = Threads(nthread,
+    threads = Threads(nthread,
        function()
           gsdl = require 'sdl2'
           ACR_helper = require 'ACR_helper'
-          math = require 'math'
-
        end,
        function(idx)
           --print('starting a new thread/state number:', idx)
           -- we copy here an upvalue of the main thread
-          grid_side = math.sqrt(njob+1)
-          output = _output
-          gradOutput = gradOutput
-          pose = pose
-          bsize = bsize
-          template=template
-          gradTemplate = _gradTemplate
-          gradPose = _gradPose
+          -- grid_side = math.sqrt(njob+1)
+          -- output = _output
+          -- gradOutput = gradOutput
+          -- pose = pose
+          -- bsize = bsize
+          -- template=template
+          -- gradTemplate = _gradTemplate
+          -- gradPose = _gradPose
        end
     )
+
+
     -- now add jobs
     local jobdone = 0
     for jid=1,njob do
        threads:addjob(
           -- the job callback
           function(jobdone)
+             local grid_side = math.sqrt(njob+1)
              local id = tonumber(gsdl.threadID())
              -- note that gmsg was intialized in last worker callback
              --print(string.format('%s -- thread ID is %x counter:%d', gmsg, id, counter))
              -- return a value to the end callback
              --print(counter)
              --return counter
-              local ii = (jid-1)% grid_side 
+              local ii = (jid-1)% grid_side
               local jj = math.floor((jid-1)/grid_side)
               local factor = math.floor(output:size()[2]/grid_side)
 
-              local start_x=ii*factor + 1; 
-              local start_y=jj*factor + 1;  
-              local endhere_x=ii*factor+factor; 
+              local start_x=ii*factor + 1;
+              local start_y=jj*factor + 1;
+              local endhere_x=ii*factor+factor;
               local endhere_y=jj*factor + factor
 
               --print(string.format('jid: %d ii:%d jj:%d ||| sx: %d, sy:%d, ex:%d, ey:%d\n',jid,ii,jj, start_x, start_y, endhere_x, endhere_y))
-              
+
               local gradTemplate_thread; local gradPose_thread
-              gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, 
+              gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template,
                                                                             gradOutput, gradTemplate, gradPose)
               return gradTemplate_thread, gradPose_thread
           end,
@@ -141,7 +143,7 @@ function ACR:updateGradInput(input, gradOutput)
              --tt[counter] = counter
              self.gradTemplate = self.gradTemplate + gradTemplate_thread
              self.gradPose = self.gradPose + gradPose_thread
-             jobdone = jobdone + 1 
+             jobdone = jobdone + 1
           end,
           jid -- argument
        )
@@ -150,14 +152,14 @@ function ACR:updateGradInput(input, gradOutput)
     --print(string.format('%d jobs done', jobdone))
     threads:terminate()
 
-  else    
+  else
 
     start_x = 1; start_y=1;  endhere_x = self.output:size()[2]; endhere_y = self.output:size()[3]
-    self.gradTemplate, self.gradPose = ACR_helper:gradHelper("singlecore", start_x, start_y, endhere_x, endhere_y ,self.output, pose, bsize, template, 
+    self.gradTemplate, self.gradPose = ACR_helper:gradHelper("singlecore", start_x, start_y, endhere_x, endhere_y ,self.output, pose, bsize, template,
                                                               gradOutput, self.gradTemplate, self.gradPose)
   end
 
-  
+
   for i=1,bsize do
     self.gradTemplate[{i,{},{}}] = self.gradTemplate[{i,{},{}}] * intensity[i]
     self.gradPose[{i,{},{}}] = self.gradPose[{i,{},{}}] * intensity[i]
@@ -178,7 +180,7 @@ function ACR:updateGradInput(input, gradOutput)
   --   self.gradInput = torch.zeros(input:size())
   -- end
 
-  
+
   return self.gradInput
 end
 
