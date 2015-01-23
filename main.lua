@@ -1,6 +1,7 @@
 -- Unsupervised Capsule Deep Network
 
 require 'torch'
+--[[
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Run this bad boy.')
@@ -10,7 +11,9 @@ cmd:option('--gpu',false,'use the GPU for the encoder')
 cmd:option('--threads', 4, 'how many threads to use')
 cmd:text()
 params = cmd:parse(arg)
--- params = {}
+--]]
+params = {}
+params['threads'] = 4
 
 --torch.setdefaulttensortype('torch.CudaTensor')
 torch.setnumthreads(params.threads)
@@ -65,7 +68,7 @@ image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 2
+bsize = 20
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
@@ -87,7 +90,7 @@ architecture:add(nn.Reshape(num_acrs,7))
 
 
 -- Creating intm and acr's
-decoder = nn.ParallelParallel(params.threads, 2,2)
+decoder = nn.Parallel(2,2)--nn.ParallelParallel(params.threads, 2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -152,7 +155,7 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 300 do
+for i = 1, 1 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))
@@ -165,11 +168,11 @@ for i = 1, 300 do
     image.save("test_images/step_"..i.."_recon.png", out)
     image.save("test_images/step_"..i.."_truth.png", batch[1])
   end
---[[
+
   architecture:zeroGradParameters()
   architecture:backward(batch, criterion:backward(architecture.output, batch))
   architecture:updateParameters(0.000001)
---]]
+
 end
 
 
