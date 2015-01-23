@@ -3,7 +3,7 @@ require 'nngraph'
 require 'INTM'
 require 'torch'
 
-require('mobdebug').start()
+--require('mobdebug').start()
 
 function intm_test()
   imsize=10; h1size=20; igeo_outsize=7;
@@ -117,10 +117,9 @@ end
 
 function custom_cuda_kernels()
   require("testcustomC")
-  print(square(1.414213598))
   print(cube(5))
 end
 
-test_threads()
---custom_cuda_kernels()
+--test_threads()
+custom_cuda_kernels()
 --intm_test()

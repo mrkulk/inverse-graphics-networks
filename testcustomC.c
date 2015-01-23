@@ -1,23 +1,19 @@
+
 /* Usage:
+
+nvcc -m64 -arch=sm_20 -o libtestkernel.so --shared -Xcompiler -fPIC test_kernel.cu
  
-gcc -Wall -shared -fPIC -o testcustomC.so -I/usr/include -lluaT -L -ltest testcustomC.c
+gcc -Wall -shared -fPIC -o testcustomC.so -I/usr/include -lluaT -L. -ltestkernel testcustomC.c
 
-
-GPU compile:
-
-nvcc -m64 -arch=sm_20 -o testcustomC.so --shared -Xcompiler -fPIC -I/usr/include -lluaT testcustomC.c
- */
+*/
 
 #include <lua.h>                               /* Always include this */
 #include <lauxlib.h>                           /* Always include this */
 #include <lualib.h>                            /* Always include this */
 #include <stdio.h>
 
-__global__ void myk(void)
-{
-    printf("Hello from thread %d block %d\n", threadIdx.x, blockIdx.x);
-}
 
+#include "test_kernel.h"
 
 static int isquare(lua_State *L){              /* Internal name of func */
 	float rtrn = lua_tonumber(L, -1);      /* Get the single number arg */
@@ -28,6 +24,9 @@ static int isquare(lua_State *L){              /* Internal name of func */
 static int icube(lua_State *L){                /* Internal name of func */
 	float rtrn = lua_tonumber(L, -1);      /* Get the single number arg */
 	printf("Top of cube(), number=%f\n",rtrn);
+	
+	cuda_GMRESfunc(50.0);
+
 	lua_pushnumber(L,rtrn*rtrn*rtrn);      /* Push the return */
 	return 1;                              /* One return value */
 }
@@ -52,10 +51,10 @@ int luaopen_testcustomC(lua_State *L){
 			L,               /* Lua state variable */
 			"square",        /* func name as known in Lua */
 			isquare          /* func name in this file */
-			);  
+			);
 	lua_register(L,"cube",icube);
 	//lua_register(L,"entry", entry);
-
+	//lua_register(L, "cuda_GMRESfunc", cuda_GMRESfunc);
 	//entry();
 
 	return 0;

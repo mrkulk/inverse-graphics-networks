@@ -1,0 +1,14 @@
+/usr/local/lib/libcutorch.so
+/usr/local/lua/cutorch/init.lua
+/usr/local/lua/cutorch/Tensor.lua
+/usr/local/lua/cutorch/FFI.lua
+/usr/local/lua/cutorch/test.lua
+/usr/local/lib/libTHC.so
+/usr/local/include/THC/THC.h
+/usr/local/include/THC/THCGeneral.h
+/usr/local/include/THC/THCBlas.h
+/usr/local/include/THC/THCStorage.h
+/usr/local/include/THC/THCTensor.h
+/usr/local/include/THC/THCTensorRandom.h
+/usr/local/include/THC/THCTensorMath.h
+/usr/local/include/THC/THCTensorConv.h
