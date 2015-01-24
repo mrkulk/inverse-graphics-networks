@@ -13,10 +13,10 @@ cmd:text()
 params = cmd:parse(arg)
 --]]
 params = {}
-params['threads'] = 4
+--params['threads'] = 12
 
 --torch.setdefaulttensortype('torch.CudaTensor')
-torch.setnumthreads(params.threads)
+--torch.setnumthreads(params.threads)
 
 require 'image'
 require 'math'
@@ -63,12 +63,12 @@ end
 trainset = getDigitSet(1)
 
 --number of acr's
-num_acrs = 2
+num_acrs = 9
 image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 30
+bsize = 20
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
@@ -90,7 +90,7 @@ architecture:add(nn.Reshape(num_acrs,7))
 
 
 -- Creating intm and acr's
--- decoder = nn.Parallel(2,2)
+--decoder = nn.Parallel(2,2)
 decoder = nn.ParallelParallel(num_acrs, 2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
@@ -156,7 +156,7 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 2 do
+for i = 1, 1 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))

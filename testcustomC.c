@@ -1,9 +1,9 @@
 
 /* Usage:
 
-nvcc -m64 -arch=sm_20 -o libtestkernel.so --shared -Xcompiler -fPIC test_kernel.cu
+nvcc -m64 -shared -arch=sm_20 -o libtestkernel.so  -Xcompiler -fPIC test_kernel.cu
  
-gcc -Wall -shared -fPIC -o testcustomC.so -I/usr/include -lluaT -L. -ltestkernel testcustomC.c
+/usr/bin/gcc-4.4 -Wall -shared -fPIC -o testcustomC.so -I/usr/include -lluaT -L. -ltestkernel testcustomC.c
 
 */
 
@@ -14,7 +14,7 @@ gcc -Wall -shared -fPIC -o testcustomC.so -I/usr/include -lluaT -L. -ltestkernel
 
 
 #include "test_kernel.h"
-
+ 
 static int isquare(lua_State *L){              /* Internal name of func */
 	float rtrn = lua_tonumber(L, -1);      /* Get the single number arg */
 	printf("Top of square(), nbr=%f\n",rtrn);
@@ -25,7 +25,7 @@ static int icube(lua_State *L){                /* Internal name of func */
 	float rtrn = lua_tonumber(L, -1);      /* Get the single number arg */
 	printf("Top of cube(), number=%f\n",rtrn);
 	
-	cuda_GMRESfunc(50.0);
+	entry();
 
 	lua_pushnumber(L,rtrn*rtrn*rtrn);      /* Push the return */
 	return 1;                              /* One return value */
