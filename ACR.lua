@@ -143,7 +143,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local runMulticore = 1
+  local runMulticore = 0
 
   if runMulticore == 1 then
     print('Running Multicore ... ')

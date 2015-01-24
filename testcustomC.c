@@ -5,6 +5,7 @@ nvcc -m64 -shared -arch=sm_20 -o libtestkernel.so  -Xcompiler -fPIC test_kernel.
  
 /usr/bin/gcc-4.4 -Wall -shared -fPIC -o testcustomC.so -I/usr/include -lluaT -L. -ltestkernel testcustomC.c
 
+
 */
 
 #include <lua.h>                               /* Always include this */
