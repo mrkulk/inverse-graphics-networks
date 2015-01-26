@@ -20,6 +20,7 @@ params = {}
 
 require 'image'
 require 'math'
+require 'parallel'
 
 
 if params.gpu then
@@ -176,6 +177,7 @@ for i = 1, 2 do
 
 end
 
+parallel.close()
 
 
 
