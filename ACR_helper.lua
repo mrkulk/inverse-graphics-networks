@@ -1,6 +1,8 @@
 
 local ACR_helper = {}
 
+require("sys")
+
 
 function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
   if mode == "singlecore" then
@@ -14,6 +16,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
   for output_x = start_x, endhere_x do
     for output_y = start_y, endhere_y do
+      sys.tic()
       -- calculate the correspondence between template and output
       output_coords = torch.Tensor({output_x, output_y, 1})
       --template_coords = pose * output_coords
@@ -41,6 +44,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       y_low  = torch.floor(template_y)
       y_high = y_low + 1
 
+
       for ii=1,bsize do
         -----------------------------------------------------------------------------
         --------------------------- Template gradient -------------------------------
@@ -60,21 +64,125 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
           end
         end
       end
+      print('template:', sys.toc())
+
+      sys.tic()
 
       -- add dCost/dOut(x,y) * dOut(x,y)/dPose for this (x,y)
-      gradPose[{{},1,1}] = gradPose[{{},1,1}] + torch.cmul(gradOutput[{{},output_x,output_y}], torch.cmul( (ACR_helper:getTemplateValue(bsize, template, x_high, y_high)*output_x - ACR_helper:getTemplateValue(bsize, template, x_low, y_high)*output_x), (pose[{{},2,3}] - y_low + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))) - torch.cmul((ACR_helper:getTemplateValue(bsize, template, x_high, y_low)*output_x - ACR_helper:getTemplateValue(bsize, template, x_low, y_low)*output_x), (pose[{{},2,3}] - y_high + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))
+      gradPose[{{},1,1}] = gradPose[{{},1,1}] + 
+            torch.cmul(
+              gradOutput[{{},output_x,output_y}], 
+              torch.cmul( 
+                (ACR_helper:getTemplateValue(bsize, template, x_high, y_high)*output_x - ACR_helper:getTemplateValue(bsize, template, x_low, y_high)*output_x), 
+                (pose[{{},2,3}] - y_low + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))
+            ) 
+            - 
+            torch.cmul(
+              (ACR_helper:getTemplateValue(bsize, template, x_high, y_low)*output_x - ACR_helper:getTemplateValue(bsize, template, x_low, y_low)*output_x), 
+              (pose[{{},2,3}] - y_high + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y)
+            )
 
-      gradPose[{{},1,2}] = gradPose[{{},1,2}] + torch.cmul(gradOutput[{{},output_x,output_y}], torch.cmul((ACR_helper:getTemplateValue(bsize, template, x_high, y_high)*output_y - ACR_helper:getTemplateValue(bsize, template, x_low, y_high)*output_y), (pose[{{},2,3}] - y_low + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))) - torch.cmul((ACR_helper:getTemplateValue(bsize, template, x_high, y_low)*output_y - ACR_helper:getTemplateValue(bsize, template, x_low, y_low)*output_y),(pose[{{},2,3}] - y_high + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))
+      gradPose[{{},1,2}] = gradPose[{{},1,2}] + 
+            torch.cmul(gradOutput[{{},output_x,output_y}], 
+              torch.cmul(
+                (ACR_helper:getTemplateValue(bsize, template, x_high, y_high)*output_y - ACR_helper:getTemplateValue(bsize, template, x_low, y_high)*output_y), 
+                (pose[{{},2,3}] - y_low + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))) 
+            - 
+            torch.cmul(
+              (ACR_helper:getTemplateValue(bsize, template, x_high, y_low)*output_y - ACR_helper:getTemplateValue(bsize, template, x_low, y_low)*output_y),
+              (pose[{{},2,3}] - y_high + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y)
+            )
 
-      gradPose[{{},1,3}] = gradPose[{{},1,3}] + torch.cmul(gradOutput[{{},output_x,output_y}], torch.cmul( (ACR_helper:getTemplateValue(bsize, template, x_high, y_high) - ACR_helper:getTemplateValue(bsize, template, x_low, y_high)),(pose[{{},2,3}] - y_low + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))) - torch.cmul((ACR_helper:getTemplateValue(bsize, template, x_high, y_low) - ACR_helper:getTemplateValue(bsize, template, x_low, y_low)),(pose[{{},2,3}] - y_high + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))
+      gradPose[{{},1,3}] = gradPose[{{},1,3}] + 
+            torch.cmul(gradOutput[{{},output_x,output_y}], 
+              torch.cmul( 
+                (ACR_helper:getTemplateValue(bsize, template, x_high, y_high) - ACR_helper:getTemplateValue(bsize, template, x_low, y_high)),
+                (pose[{{},2,3}] - y_low + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y))) 
+            - 
+            torch.cmul(
+              (ACR_helper:getTemplateValue(bsize, template, x_high, y_low) - ACR_helper:getTemplateValue(bsize, template, x_low, y_low)),
+              (pose[{{},2,3}] - y_high + pose[{{},2,1}]*output_x + pose[{{},2,2}]*output_y)
+            )
 
 
-      gradPose[{{},2,1}] = gradPose[{{},2,1}] +  torch.cmul(gradOutput[{{},output_x,output_y}], torch.cmul( ACR_helper:getTemplateValue(bsize, template, x_high, y_high), (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_high), (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)))*output_x - (  torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_low),(pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_low),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)))*output_x
+      gradPose[{{},2,1}] = gradPose[{{},2,1}] +  
+            torch.cmul(gradOutput[{{},output_x,output_y}], 
+              torch.cmul( 
+                ACR_helper:getTemplateValue(bsize, template, x_high, y_high), 
+                (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) 
+              - 
+              torch.cmul(
+                ACR_helper:getTemplateValue(bsize, template, x_low, y_high), 
+                (
+                  pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))
+            )*output_x 
+            - 
+            (
+              torch.cmul(
+                ACR_helper:getTemplateValue(bsize, template, x_high, y_low),
+                (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+              ) 
+              - 
+              torch.cmul(
+                ACR_helper:getTemplateValue(bsize, template, x_low, y_low),
+                (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+              )
+            )*output_x
 
 
-      gradPose[{{},2,2}] = gradPose[{{},2,2}] + torch.cmul(gradOutput[{{},output_x,output_y}],(torch.cmul( ACR_helper:getTemplateValue(bsize, template, x_high, y_high),(pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_high),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))))*output_y - ( torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_low),(pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_low),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)))*output_y
+      gradPose[{{},2,2}] = gradPose[{{},2,2}] + 
+            torch.cmul(
+              gradOutput[{{},output_x,output_y}],
+              (
+                torch.cmul( ACR_helper:getTemplateValue(bsize, template, x_high, y_high),
+                  (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+                ) 
+                - 
+                torch.cmul(
+                  ACR_helper:getTemplateValue(bsize, template, x_low, y_high),
+                  (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+                )
+              )
+            )*output_y 
+            - 
+            (
+              torch.cmul(
+                ACR_helper:getTemplateValue(bsize, template, x_high, y_low),
+                (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+              ) 
+              - 
+              torch.cmul(
+                ACR_helper:getTemplateValue(bsize, template, x_low, y_low),
+                (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+              )
+            )*output_y
 
-      gradPose[{{},2,3}] = gradPose[{{},2,3}] + torch.cmul(gradOutput[{{},output_x,output_y}], torch.cmul( ACR_helper:getTemplateValue(bsize, template, x_high, y_high), (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))) - torch.cmul( ACR_helper:getTemplateValue(bsize, template, x_low, y_high),(pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) - torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_low), (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)) + torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_low), (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y))
+      gradPose[{{},2,3}] = gradPose[{{},2,3}] + 
+            torch.cmul(
+              gradOutput[{{},output_x,output_y}], 
+              torch.cmul( 
+                ACR_helper:getTemplateValue(bsize, template, x_high, y_high), 
+                (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+              )
+            ) 
+            - 
+            torch.cmul( 
+              ACR_helper:getTemplateValue(bsize, template, x_low, y_high),
+              (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+            ) 
+            - 
+            torch.cmul(
+              ACR_helper:getTemplateValue(bsize, template, x_high, y_low),
+              (pose[{{},1,3}] - x_low + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+            ) 
+            + 
+            torch.cmul(
+              ACR_helper:getTemplateValue(bsize, template, x_low, y_low), 
+              (pose[{{},1,3}] - x_high + pose[{{},1,1}]*output_x + pose[{{},1,2}]*output_y)
+            )
+      
+
+      print('posegrad:' , sys.toc())
     end
   end
     return gradTemplate, gradPose
