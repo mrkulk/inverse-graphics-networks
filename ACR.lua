@@ -4,6 +4,7 @@
 local ACR_helper = require 'ACR_helper'
 local ACR, Parent = torch.class('nn.ACR', 'nn.Module')
 
+
 parallel = require 'parallel'
 local Threads = require 'threads'
 local sdl = require 'sdl2'
@@ -89,7 +90,7 @@ end
 function parent(grid_size, output, gradOutput, pose, bsize, template, gradTemplate, gradPose)
    parallel.print('Im the parent, my ID is: ' .. parallel.parent.id)
 
-   local njob = 2*2-1 --divide image into 4x4 block
+   local njob = 2*2 --divide image into 4x4 block
    -- fork N processes
    parallel.nfork(njob)
    -- exec worker code in each process
@@ -102,7 +103,7 @@ function parent(grid_size, output, gradOutput, pose, bsize, template, gradTempla
       parallel.children:send(t)
       replies = parallel.children:receive()
    end --]]
-   grid_side = math.sqrt(njob+1)
+   grid_side = math.sqrt(njob)
    for jid = 1,njob do
       local ii = (jid-1)% grid_side
       local jj = math.floor((jid-1)/grid_side)
@@ -148,83 +149,85 @@ function ACR:updateGradInput(input, gradOutput)
   if runMulticore == 1 then
     print('Running Multicore ... ')
 
-    -- protected execution:
-    parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
-    
-    --[[
-    -- GPU CODE ENDS HERE
-    local njob = 4*4-1 --divide image into 4x4 block
-    local output = torch.Tensor(self.output:size()):copy(self.output)
-    local gradTemplate = torch.Tensor(self.gradTemplate:size())
-    local gradPose = torch.Tensor(self.gradPose:size())
+    if false then
+      -- protected execution:
+      parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
+    else
+      --using threads-ffi package
+      local njob = 2*2 --divide image into 4x4 block
+      local output = torch.Tensor(self.output:size()):copy(self.output)
+      local gradTemplate = torch.Tensor(self.gradTemplate:size())
+      local gradPose = torch.Tensor(self.gradPose:size())
 
-    local nthread = 1
+      local nthread = njob
 
-    sdl.init(0)
+      sdl.init(0)
 
-    local acr_threads = Threads(nthread,
-       function()
-          gsdl = require 'sdl2'
-          ACR_helper = require 'ACR_helper'
-       end,
-       function(idx)
-          --print('starting a new thread/state number:', idx)
-          -- we copy here an upvalue of the main thread
-          -- grid_side = math.sqrt(njob+1)
-          -- output = _output
-          -- gradOutput = gradOutput
-          -- pose = pose
-          -- bsize = bsize
-          -- template=template
-          -- gradTemplate = _gradTemplate
-          -- gradPose = _gradPose
-       end
-    )
+      local acr_threads = Threads(nthread,
+         function()
+            gsdl = require 'sdl2'
+            ACR_helper = require 'ACR_helper'
+         end,
+         function(idx)
+            --print('starting a new thread/state number:', idx)
+            -- we copy here an upvalue of the main thread
+            -- grid_side = math.sqrt(njob+1)
+            -- output = _output
+            -- gradOutput = gradOutput
+            -- pose = pose
+            -- bsize = bsize
+            -- template=template
+            -- gradTemplate = _gradTemplate
+            -- gradPose = _gradPose
+         end
+      )
 
 
-    -- now add jobs
-    local jobdone = 0
-    for jid=1,njob do
-       acr_threads:addjob(
-          -- the job callback
-          function(jobdone)
-             local grid_side = math.sqrt(njob+1)
-             local id = tonumber(gsdl.threadID())
+      -- now add jobs
+      local jobdone = 0
+      for jid=1,njob do
+         acr_threads:addjob(
+            -- the job callback
+            function(jobdone)
+               local grid_side = math.sqrt(njob)
+               local id = tonumber(gsdl.threadID())
 
-              local ii = (jid-1)% grid_side
-              local jj = math.floor((jid-1)/grid_side)
-              local factor = math.floor(output:size()[2]/grid_side)
+                local ii = (jid-1)% grid_side
+                local jj = math.floor((jid-1)/grid_side)
+                local factor = math.floor(output:size()[2]/grid_side)
 
-              local start_x=ii*factor + 1;
-              local start_y=jj*factor + 1;
-              local endhere_x=ii*factor+factor;
-              local endhere_y=jj*factor + factor
+                local start_x=ii*factor + 1;
+                local start_y=jj*factor + 1;
+                local endhere_x=ii*factor+factor;
+                local endhere_y=jj*factor + factor
 
-              --print(string.format('jid: %d ii:%d jj:%d ||| sx: %d, sy:%d, ex:%d, ey:%d\n',jid,ii,jj, start_x, start_y, endhere_x, endhere_y))
+                --print(string.format('jid: %d ii:%d jj:%d ||| sx: %d, sy:%d, ex:%d, ey:%d\n',jid,ii,jj, start_x, start_y, endhere_x, endhere_y))
 
-              local gradTemplate_thread; local gradPose_thread 
-              gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template,
-                                                                            gradOutput, gradTemplate, gradPose)
-              
-              --gradTemplate_thread = torch.zeros(20, 11,11)
-              --gradPose_thread = torch.zeros(20,7)
-              return gradTemplate_thread, gradPose_thread
-          end,
-          -- takes output of the previous function as argument
-          function(gradTemplate_thread, gradPose_thread)
-             -- note that we can manipulate upvalues of the main thread
-             -- as this callback is ran in the main thread!
-             self.gradTemplate = self.gradTemplate + gradTemplate_thread
-             self.gradPose = self.gradPose + gradPose_thread
-             jobdone = jobdone + 1
-          end,
-          jid -- argument
-       )
+                local gradTemplate_thread; local gradPose_thread 
+                gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template,
+                                                                              gradOutput, gradTemplate, gradPose)
+                
+                --gradTemplate_thread = torch.zeros(20, 11,11)
+                --gradPose_thread = torch.zeros(20,7)
+                print('[thread finished] jobid:',jid)
+                return gradTemplate_thread, gradPose_thread
+            end,
+            -- takes output of the previous function as argument
+            function(gradTemplate_thread, gradPose_thread)
+               -- note that we can manipulate upvalues of the main thread
+               -- as this callback is ran in the main thread!
+               self.gradTemplate = self.gradTemplate + gradTemplate_thread
+               self.gradPose = self.gradPose + gradPose_thread
+               jobdone = jobdone + 1
+            end,
+            jid -- argument
+         )
+      end
+      acr_threads:synchronize()-- wait for all jobs to finish
+      --print(string.format('%d jobs done', jobdone))
+      acr_threads:terminate()
+      --]]
     end
-    acr_threads:synchronize()-- wait for all jobs to finish
-    --print(string.format('%d jobs done', jobdone))
-    acr_threads:terminate()
-    --]]
   else
 
     start_x = 1; start_y=1;  endhere_x = self.output:size()[2]; endhere_y = self.output:size()[3]

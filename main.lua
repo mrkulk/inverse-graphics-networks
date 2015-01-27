@@ -91,7 +91,7 @@ architecture:add(nn.Reshape(num_acrs,7))
 
 
 -- Creating intm and acr's
--- decoder = nn.Parallel(2,2)
+--decoder = nn.Parallel(2,2)
 decoder = nn.ParallelParallel(2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()

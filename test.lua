@@ -117,6 +117,8 @@ end
 
 function custom_cuda_kernels()
   require("gradACRWrapper")
+  -- args:(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
+  
   print(gradACRWrapper(5))
 end
 
