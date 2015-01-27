@@ -16,9 +16,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
   for output_x = start_x, endhere_x do
     for output_y = start_y, endhere_y do
-      
       --sys.tic()
-      
       -- calculate the correspondence between template and output
       output_coords = torch.Tensor({output_x, output_y, 1})
       --template_coords = pose * output_coords
@@ -34,11 +32,17 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       template_y = template_y - 1/2
 
       local x_high_coeff = torch.Tensor(bsize)
-      x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
-      x_low_coeff  =  -x_high_coeff + 1
-
       local y_high_coeff = torch.Tensor(bsize)
-      y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
+
+      --x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
+      --y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
+      
+      for i=1,bsize do
+        x_high_coeff[i] = math.fmod(template_x[i],1)
+        y_high_coeff[i] = math.fmod(template_y[i],1)
+      end
+
+      x_low_coeff  =  -x_high_coeff + 1
       y_low_coeff  =  -y_high_coeff + 1
 
       x_low  = torch.floor(template_x)
@@ -67,6 +71,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
         end
       end
       --print('template:', sys.toc())
+
       --sys.tic()
 
       template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
@@ -81,119 +86,82 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       pose_2_2 = pose[{{},2,2}]
       pose_2_3 = pose[{{},2,3}]
 
+
+      cache1 = (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y)
+      cache2 = (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
+      cache3 = (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
+      cache4 = (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
+
+      cache5 = torch.cmul(template_val_xhigh_yhigh, cache3)
+      cache6 = torch.cmul(template_val_xlow_yhigh, cache4)
+      cache7 = torch.cmul(template_val_xhigh_ylow, cache3)
+      cache8 = torch.cmul(template_val_xlow_ylow, cache4)
+
+      cache9 = torch.cmul(gradOutput[{{},output_x,output_y}], cache5-cache6 )
+      cache10 = (cache7-cache8)
+
       -- add dCost/dOut(x,y) * dOut(x,y)/dPose for this (x,y)
       gradPose[{{},1,1}] = gradPose[{{},1,1}] + 
             torch.cmul(
               gradOutput[{{},output_x,output_y}], 
               torch.cmul( 
                 (template_val_xhigh_yhigh*output_x - template_val_xlow_yhigh*output_x), 
-                (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y))
+                cache1
+              )
             ) 
             - 
             torch.cmul(
               (template_val_xhigh_ylow*output_x - template_val_xlow_ylow*output_x), 
-              (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
+              cache2
             )
 
       gradPose[{{},1,2}] = gradPose[{{},1,2}] + 
             torch.cmul(gradOutput[{{},output_x,output_y}], 
               torch.cmul(
                 (template_val_xhigh_yhigh*output_y - template_val_xlow_yhigh*output_y), 
-                (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y))) 
+                cache1)) 
             - 
             torch.cmul(
               (template_val_xhigh_ylow*output_y - template_val_xlow_ylow*output_y),
-              (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
+              cache2
             )
 
       gradPose[{{},1,3}] = gradPose[{{},1,3}] + 
             torch.cmul(gradOutput[{{},output_x,output_y}], 
               torch.cmul( 
                 (template_val_xhigh_yhigh - template_val_xlow_yhigh),
-                (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y))) 
+                cache1)) 
             - 
             torch.cmul(
               (template_val_xhigh_ylow - template_val_xlow_ylow),
-              (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
+              cache2
             )
 
 
       gradPose[{{},2,1}] = gradPose[{{},2,1}] +  
-            torch.cmul(gradOutput[{{},output_x,output_y}], 
-              torch.cmul( 
-                template_val_xhigh_yhigh, 
-                (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)) 
-              - 
-              torch.cmul(
-                template_val_xlow_yhigh, 
-                (
-                  pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y))
-            )*output_x 
+            cache9*output_x 
             - 
-            (
-              torch.cmul(
-                template_val_xhigh_ylow,
-                (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-              ) 
-              - 
-              torch.cmul(
-                template_val_xlow_ylow,
-                (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
-              )
-            )*output_x
+            cache10*output_x
 
 
       gradPose[{{},2,2}] = gradPose[{{},2,2}] + 
-            torch.cmul(
-              gradOutput[{{},output_x,output_y}],
-              (
-                torch.cmul( template_val_xhigh_yhigh,
-                  (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-                ) 
-                - 
-                torch.cmul(
-                  template_val_xlow_yhigh,
-                  (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
-                )
-              )
-            )*output_y 
+            cache9*output_y 
             - 
-            (
-              torch.cmul(
-                template_val_xhigh_ylow,
-                (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-              ) 
-              - 
-              torch.cmul(
-                template_val_xlow_ylow,
-                (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
-              )
-            )*output_y
+            cache10*output_y
 
       gradPose[{{},2,3}] = gradPose[{{},2,3}] + 
             torch.cmul(
               gradOutput[{{},output_x,output_y}], 
-              torch.cmul( 
-                template_val_xhigh_yhigh, 
-                (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-              )
+              cache5
             ) 
             - 
-            torch.cmul( 
-              template_val_xlow_yhigh,
-              (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
-            ) 
+            cache6 
             - 
-            torch.cmul(
-              template_val_xhigh_ylow,
-              (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-            ) 
+            cache7  
             + 
-            torch.cmul(
-              template_val_xlow_ylow, 
-              (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
-            )
-      
+            cache8
+
+
 
       --print('posegrad:' , sys.toc())
     end
