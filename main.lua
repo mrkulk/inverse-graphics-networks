@@ -157,7 +157,7 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 2 do
+for i = 1, 5 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))
