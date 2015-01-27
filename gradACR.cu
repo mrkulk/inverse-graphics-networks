@@ -1,9 +1,9 @@
-// nvcc -m64 -shared -arch=sm_20 -o libtestkernel.so  -Xcompiler -fPIC test_kernel.cu
+// nvcc -m64 -shared -arch=sm_20 -o libgradACR.so  -Xcompiler -fPIC gradACR.cu
 
 #include <stdio.h>
 
 extern "C" {
-#include "test_kernel.h"
+#include "gradACR.h"
 }
 
 __global__ void myk(void)
@@ -12,7 +12,7 @@ __global__ void myk(void)
 }
 
 
-extern "C" void entry(void)
+extern "C" void get_gradACR_gradient(void)
 {
     myk<<<32,32>>>();
     printf("CUDA status: %d\n", cudaDeviceSynchronize());

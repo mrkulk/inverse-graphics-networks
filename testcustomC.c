@@ -32,8 +32,6 @@ static int icube(lua_State *L){                /* Internal name of func */
 	return 1;                              /* One return value */
 }
 
-//void entry(void);
-
 /* Register this file's functions with the
  * luaopen_libraryname() function, where libraryname
  * is the name of the compiled .so output. In other words

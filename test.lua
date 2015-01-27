@@ -116,8 +116,8 @@ function basic_torch()
 end
 
 function custom_cuda_kernels()
-  require("testcustomC")
-  print(cube(5))
+  require("gradACRWrapper")
+  print(gradACRWrapper(5))
 end
 
 --test_threads()
