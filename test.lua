@@ -117,8 +117,10 @@ end
 
 function custom_cuda_kernels()
   require("gradACRWrapper")
+  local ACR_helper = require("ACR_helper")
 
 
+  --------------- GPU --------------
   imwidth = 32; 
   tdim = 11; 
   bsize = 30; 
@@ -127,8 +129,8 @@ function custom_cuda_kernels()
   template = torch.rand(bsize,tdim,tdim)
   gradOutput = torch.rand(bsize, imwidth, imwidth)
 
-  gradTemplate = torch.rand(bsize, tdim, tdim)
-  gradPose = torch.rand(bsize, 3 , 3)
+  gradTemplate = torch.zeros(bsize, tdim, tdim)
+  gradPose = torch.zeros(bsize, 3 , 3)
 
   gradAll = torch.zeros(bsize*tdim*tdim + bsize*3*3)
   gradAll[{{1, bsize*tdim*tdim}}]=gradTemplate:reshape(bsize*tdim*tdim)
@@ -139,12 +141,26 @@ function custom_cuda_kernels()
     output:reshape(bsize*imwidth*imwidth), pose:reshape(bsize*3*3), 
     template:reshape(bsize*tdim*tdim), gradOutput:reshape(bsize*imwidth*imwidth), gradAll)
 
-  --print("In Lua:")
-  gradTemplate = gradAll[{{1, bsize*tdim*tdim}}]:reshape(bsize, tdim, tdim)
-  gradPose = gradAll[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3)
-
+  gradTemplate = res[{{1, bsize*tdim*tdim}}]:reshape(bsize, tdim, tdim)
+  gradPose = res[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3)
   --print(gradTemplate:size())
   --print(gradPose:size())
+
+  ------------- CPU -----------------
+  endhere_x = output:size()[2]; endhere_y = output:size()[3];
+  _gradTemplate = torch.zeros(bsize, tdim, tdim)
+  _gradPose = torch.zeros(bsize, 3 , 3)
+
+  cpu_gradTemplate, cpu_gradPose = ACR_helper:gradHelper("singlecore", 1, 1, endhere_x, endhere_y, 
+              output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
+
+  print('------------------------------------------------------------')
+  print('gradTemplate Errors: ', torch.sum(cpu_gradTemplate - gradTemplate))
+  print('gradPose Errors: ', torch.sum(cpu_gradPose - gradPose))
+  --print('cpu:')
+  --print(cpu_gradPose)
+  --print('gpu:')
+  --print(gradPose)
 end
 
 --test_threads()
