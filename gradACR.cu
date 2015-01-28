@@ -167,9 +167,30 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 }		
 
 
+extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *output, double *pose, 
+						double *_template, double *gradOutput, double *gradTemplate, double *gradPose)
+{	
+	
+/*
+	//setup GPU grid and block structure
+	//dim3 grid; grid.x=32; grid.y = 32;
+	dim3 grid; grid.x=3; grid.y = 3;
+
+	//dim3 block; block.x=1; block.y=1; block.z=bsize;
+	dim3 block; block.x=1; block.y=1; block.z=2;
+
+    getgradient<<<grid,block>>>(imwidth, tdim,  bsize, cuda_output, cuda_pose, cuda_template, cuda_gradOutput, cuda_gradTemplate, cuda_gradPose);
+*/  
+    printf("CUDA status: %d\n", cudaDeviceSynchronize());
+}
+
+
+/*
 extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *cuda_output, double *cuda_pose, 
 						double *cuda_template, double *cuda_gradOutput, double *cuda_gradTemplate, double *cuda_gradPose)
 {	
+	
+
 	//setup GPU grid and block structure
 	//dim3 grid; grid.x=32; grid.y = 32;
 	dim3 grid; grid.x=3; grid.y = 3;
@@ -179,4 +200,4 @@ extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *c
 
     getgradient<<<grid,block>>>(imwidth, tdim,  bsize, cuda_output, cuda_pose, cuda_template, cuda_gradOutput, cuda_gradTemplate, cuda_gradPose);
     printf("CUDA status: %d\n", cudaDeviceSynchronize());
-}
+}*/

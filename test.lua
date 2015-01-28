@@ -117,16 +117,34 @@ end
 
 function custom_cuda_kernels()
   require("gradACRWrapper")
-  -- args:(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
+
+
+  imwidth = 32; 
+  tdim = 11; 
+  bsize = 30; 
+  output = torch.rand(bsize,imwidth,imwidth)
+  pose = torch.rand(bsize,3,3)
+  template = torch.rand(bsize,tdim,tdim)
+  gradOutput = torch.rand(bsize, imwidth, imwidth)
+
+  gradTemplate = torch.rand(bsize, tdim, tdim)
+  gradPose = torch.rand(bsize, 3 , 3)
+
+  gradAll = torch.zeros(bsize*tdim*tdim + bsize*3*3)
+  gradAll[{{1, bsize*tdim*tdim}}]=gradTemplate:reshape(bsize*tdim*tdim)
+  gradAll[{{bsize*tdim*tdim+1, bsize*tdim*tdim+ bsize*3*3}}]=gradPose:reshape(bsize*3*3)
   
-  data = torch.rand(5)*10 + 3
-  print("Sending:")
-  print(data)
-  res = gradACRWrapper(data)
-  print("In Lua:")
-  print(res)
-  --print(res[1])
-  --print(res[2])
+
+  res = gradACRWrapper(imwidth, tdim, bsize, 
+    output:reshape(bsize*imwidth*imwidth), pose:reshape(bsize*3*3), 
+    template:reshape(bsize*tdim*tdim), gradOutput:reshape(bsize*imwidth*imwidth), gradAll)
+
+  --print("In Lua:")
+  gradTemplate = gradAll[{{1, bsize*tdim*tdim}}]:reshape(bsize, tdim, tdim)
+  gradPose = gradAll[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3)
+
+  --print(gradTemplate:size())
+  --print(gradPose:size())
 end
 
 --test_threads()

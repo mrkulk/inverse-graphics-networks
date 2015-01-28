@@ -68,25 +68,49 @@ static void stackDump (lua_State *L) {
 static int gradACRWrapper(lua_State *L){                
 	//stackDump(L);
 
+	int imwidth = lua_tonumber(L, 1);
+	int tdim = lua_tonumber(L, 2);
+	int bsize = lua_tonumber(L, 3);
+
 	static const void* torch_DoubleTensor_id = NULL;
   	torch_DoubleTensor_id = luaT_checktypename2id(L, "torch.DoubleTensor");
-	
-	int narg = lua_gettop(L);
-	THDoubleTensor *arg1 = NULL;
-	int arg2 = 0;
-	if(narg == 1 && (arg1 = luaT_toudata(L, 1, torch_DoubleTensor_id)))
-	{
-	}
-	else
-		luaL_error(L, "expected arguments: DoubleTensor");
-	
-	printf("sz:%f\n", arg1->storage->data[1]);
-	arg1->storage->data[1] = 6699;
+
+	//THDoubleTensor *arg1 = NULL;
+	//arg1 = luaT_toudata(L, 1, torch_DoubleTensor_id);
+	//printf("sz:%f\n", arg1->storage->data[1]);
+	//arg1->storage->data[1] = 6699;
 	//arg2 = 9;
 	//lua_pushnumber(L, (lua_Number)arg2);
-	
-	//lua_push
-	stackDump(L);
+
+  	//stackDump(L);
+
+  	THDoubleTensor *toutput = luaT_toudata(L, 4, torch_DoubleTensor_id);
+  	double *output = toutput->storage->data;
+
+	THDoubleTensor *tpose = luaT_toudata(L, 5, torch_DoubleTensor_id);
+  	double *pose = tpose->storage->data;
+
+	THDoubleTensor *ttemplate = luaT_toudata(L, 6, torch_DoubleTensor_id);
+  	double *_template = ttemplate->storage->data;
+
+	THDoubleTensor *tgradOutput = luaT_toudata(L, 7, torch_DoubleTensor_id);
+  	double *gradOutput = tgradOutput->storage->data;
+
+	THDoubleTensor *tgradAll = luaT_toudata(L, 8, torch_DoubleTensor_id);
+  	double *gradAll = tgradAll->storage->data;
+
+  	double *gradTemplate = gradAll;
+  	double *gradPose = gradAll + bsize*tdim*tdim; 
+
+	int output_size = sizeof(double) * bsize * imwidth * imwidth ;
+	int pose_size =  sizeof(double) * bsize * 3 * 3;
+	int template_size = sizeof(double) * bsize * tdim * tdim ;
+	int gradOutput_size = sizeof(double) * bsize * imwidth * imwidth;
+	int gradTemplate_size = sizeof(double) * bsize * tdim * tdim;
+	int gradPose_size = sizeof(double) * bsize * 3 * 3;
+
+	get_gradACR_gradient( imwidth, tdim, bsize, output, pose, 
+					 _template,  gradOutput,  gradTemplate,  gradPose);	
 	return 1;  
 
 }
