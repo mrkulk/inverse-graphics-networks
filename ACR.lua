@@ -5,7 +5,7 @@ local ACR_helper = require 'ACR_helper'
 local ACR, Parent = torch.class('nn.ACR', 'nn.Module')
 --require("gradACRWrapper")
 
-parallel = require 'parallel'
+-- parallel = require 'parallel'
 local Threads = require 'threads'
 local sdl = require 'sdl2'
 -- local profile = xlua.Profiler()
@@ -18,6 +18,46 @@ function ACR:__init(bsize, output_width)
   --
 end
 
+function ACR:makeThreads()
+  -- define code for workers:
+  function worker()
+    -- a worker starts with a blank stack, we need to reload
+    -- our libraries
+    require 'sys'
+    require 'torch'
+
+    -- print from worker:
+    parallel.print('Im a worker, my ID is: ' .. parallel.id .. ' and my IP: ' .. parallel.ip)
+
+    -- define a storage to receive data from top process
+    --[[while true do
+      -- yield = allow parent to terminate me
+      m = parallel.yield()
+      if m == 'break' then break end
+      -- receive data
+      local t = parallel.parent:receive()
+      parallel.print('received: ', t.gradTemplate)
+      -- send some data back
+      parallel.parent:send('dfdf')
+    end --]]
+    while true do
+      m = parallel.yield()
+      if m == 'break' then break end
+
+      -- parallel.print('workering')
+      local t = parallel.parent:receive()
+      parallel.parent:send('dfdf')
+    end
+  end
+
+  parallel.print('making threads')
+   local njob = 2*2 --divide image into 4x4 block
+   -- fork N processes
+   parallel.nfork(njob)
+   -- exec worker code in each process
+   parallel.children:exec(worker)
+end
+
 
 function ACR:updateOutput(input)
   --profile:start('ACR_updateOutput')
@@ -25,6 +65,7 @@ function ACR:updateOutput(input)
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
   local iGeoPose = input[2]
+
   local pose = iGeoPose[{{},{1,9}}]:reshape(bsize,3,3)
   local intensity = iGeoPose[{{}, {10}}]:reshape(bsize)
 
@@ -61,41 +102,13 @@ function ACR:updateOutput(input)
 end
 
 
--- define code for workers:
-function worker()
-  -- a worker starts with a blank stack, we need to reload
-  -- our libraries
-  require 'sys'
-  require 'torch'
 
-  -- print from worker:
-  parallel.print('Im a worker, my ID is: ' .. parallel.id .. ' and my IP: ' .. parallel.ip)
-
-  -- define a storage to receive data from top process
-  --[[while true do
-    -- yield = allow parent to terminate me
-    m = parallel.yield()
-    if m == 'break' then break end
-    -- receive data
-    local t = parallel.parent:receive()
-    parallel.print('received: ', t.gradTemplate)
-    -- send some data back
-    parallel.parent:send('dfdf')
-  end --]]
-  
-  local t = parallel.parent:receive()
-  parallel.parent:send('dfdf')
-end
 
 -- define code for parent:
 function parent(grid_size, output, gradOutput, pose, bsize, template, gradTemplate, gradPose)
-   parallel.print('Im the parent, my ID is: ' .. parallel.parent.id)
+   -- parallel.print('Im the parent, my ID is: ' .. parallel.parent.id)
 
-   local njob = 2*2 --divide image into 4x4 block
-   -- fork N processes
-   parallel.nfork(njob)
-   -- exec worker code in each process
-   parallel.children:exec(worker)
+
    -- create a complex object to send to workers
    --[[t = {name='my variable', data=torch.randn(100,100)}
    -- transmit object to each worker
@@ -104,6 +117,7 @@ function parent(grid_size, output, gradOutput, pose, bsize, template, gradTempla
       parallel.children:send(t)
       replies = parallel.children:receive()
    end --]]
+   local njob = parallel.nchildren
    grid_side = math.sqrt(njob)
    for jid = 1,njob do
       local ii = (jid-1)% grid_side
@@ -118,16 +132,16 @@ function parent(grid_size, output, gradOutput, pose, bsize, template, gradTempla
       --print(string.format('jid: %d ii:%d jj:%d ||| sx: %d, sy:%d, ex:%d, ey:%d\n',jid,ii,jj, start_x, start_y, endhere_x, endhere_y))
       worker_struct = {start_x=start_x, start_y=start_y, endhere_x=endhere_x, endhere_y=endhere_y, output=output,pose= pose, bsize=bsize, template=template,
                                                                     gradOutput=gradOutput, gradTemplate=gradTemplate, gradPose=gradPose}
-      --parallel.children[jid]:join()
+      parallel.children[jid]:join()
       parallel.children[jid]:send(worker_struct)
       --recv = parallel.children[jid]:receive()
       --gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template,
-       --                                                             gradOutput, gradTemplate, gradPose)      
+       --                                                             gradOutput, gradTemplate, gradPose)
    end
-   replies = parallel.children:receive()   
+   replies = parallel.children:receive()
    -- sync/terminate when all workers are done
-   parallel.children:join('break')
-   parallel.close()
+   -- parallel.children:join('break')
+   -- parallel.()
 end
 
 
@@ -145,15 +159,15 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local runMulticore = 0
+  local runMulticore = 1
 
   if runMulticore == 1 then
     print('Running Multicore ... ')
 
     if true then
       -- protected execution:
-      -- parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
-      gradACRWrapper(0)
+      parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
+      -- gradACRWrapper(0)
     else
       --using threads-ffi package
       local njob = 2*2 --divide image into 4x4 block
@@ -205,10 +219,10 @@ function ACR:updateGradInput(input, gradOutput)
 
                 --print(string.format('jid: %d ii:%d jj:%d ||| sx: %d, sy:%d, ex:%d, ey:%d\n',jid,ii,jj, start_x, start_y, endhere_x, endhere_y))
 
-                local gradTemplate_thread; local gradPose_thread 
+                local gradTemplate_thread; local gradPose_thread
                 gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template,
                                                                               gradOutput, gradTemplate, gradPose)
-                
+
                 --gradTemplate_thread = torch.zeros(20, 11,11)
                 --gradPose_thread = torch.zeros(20,7)
                 --print('[thread finished] jobid:',jid)
