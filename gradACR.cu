@@ -50,19 +50,18 @@ __device__ double getTemplateValue(int tdim, int bsize, int bid, double *_templa
 }
 
 
- __device__ inline void MyAtomicAdd_8(double *address, double value)
- {
-   unsigned long long oldval, newval, readback; 
- 
-   oldval = __double_as_longlong(*address);
-   newval = __double_as_longlong(__longlong_as_double(oldval) + value);
-   while ((readback=atomicCAS((unsigned long long *)address, oldval, newval)) != oldval)
-     {
-      oldval = readback;
-      newval = __double_as_longlong(__longlong_as_double(oldval) + value);
-     }
- }
-
+__device__ double atomicAdd_double(double* address, double val)
+{
+	unsigned long long int* address_as_ull =
+	(unsigned long long int*)address;
+	unsigned long long int old = *address_as_ull, assumed;
+	do {
+	assumed = old;
+	old = atomicCAS(address_as_ull, assumed,__double_as_longlong(val +
+	__longlong_as_double(assumed)));
+	} while (assumed != old);
+	return __longlong_as_double(old);
+}
 
 __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_output, double *cuda_pose, double *cuda_template, double *cuda_gradOutput, double *cuda_gradTemplate, double *cuda_gradPose)
 {
@@ -144,26 +143,31 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 	dOutdPose[1][0] = x_vec[1]*y_vec[0];
 	dOutdPose[1][1] = x_vec[1]*y_vec[1];
 
+	
 	////////////////////// accumulate gradient ////////////////
 	///////////// using atomics to avoid race condition ///////
-	if (x_low >= 1 && x_low <= tdim && y_low >= 1 && y_low <= tdim) 
-		MyAtomicAdd_8(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_low + y_low]), dOutdPose[0][0]);
+	if (x_low >= 1 && x_low <= tdim && y_low >= 1 && y_low <= tdim) {
+		atomicAdd_double(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_low + y_low]), dOutdPose[0][0]);
+	}
 
-	if (x_low >= 1 && x_low <= tdim && y_high >= 1 && y_high <= tdim) 
-		MyAtomicAdd_8(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_low + y_high]), dOutdPose[0][1]);
+	if (x_low >= 1 && x_low <= tdim && y_high >= 1 && y_high <= tdim) { 
+		atomicAdd_double(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_low + y_high]), dOutdPose[0][1]);
+	}
+	if (x_high >= 1 && x_high <= tdim && y_low >= 1 && y_low <= tdim) {
+		atomicAdd_double(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_high + y_low]), dOutdPose[1][0]);
+	}
 	
-	if (x_high >= 1 && x_high <= tdim && y_low >= 1 && y_low <= tdim) 
-		MyAtomicAdd_8(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_high + y_low]), dOutdPose[1][0]);
+	if (x_high >= 1 && x_high <= tdim && y_high >= 1 && y_high <= tdim){ 
+		atomicAdd_double(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_high + y_high]), dOutdPose[1][1]);
+	}
 	
-	if (x_high >= 1 && x_high <= tdim && y_high >= 1 && y_high <= tdim) 
-		MyAtomicAdd_8(&(cuda_gradTemplate[bid*tdim*tdim + tdim*x_high + y_high]), dOutdPose[1][1]);
+	atomicAdd_double(&(cuda_gradPose[bid*9]), cache13*output_x);
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 1]), cache13*output_y);
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 2]), cache12 - cache11);
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 3]), cache14 * output_x);
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 4]), cache14 * output_y);
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 5]), (cache_gradOutput_outputx_outputy*cache5)-cache6-cache7+cache8);	
 	
-	MyAtomicAdd_8(&(cuda_gradPose[bid*9]), cache13*output_x);
-	MyAtomicAdd_8(&(cuda_gradPose[bid*9 + 1]), cache13*output_y);
-	MyAtomicAdd_8(&(cuda_gradPose[bid*9 + 2]), cache12 - cache11);
-	MyAtomicAdd_8(&(cuda_gradPose[bid*9 + 3]), cache14 * output_x);
-	MyAtomicAdd_8(&(cuda_gradPose[bid*9 + 4]), cache14 * output_y);
-	MyAtomicAdd_8(&(cuda_gradPose[bid*9 + 5]), (cache_gradOutput_outputx_outputy*cache5)-cache6-cache7+cache8);	
 }		
 
 
@@ -208,8 +212,13 @@ extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *o
 	dim3 block; block.x=1; block.y=1; block.z=bsize;
 	//dim3 block; block.x=1; block.y=1; block.z=2;
 
-    getgradient<<<grid,block>>>(imwidth, tdim,  bsize, cuda_output, cuda_pose, cuda_template, cuda_gradOutput, cuda_gradTemplate, cuda_gradPose);
+	getgradient<<<grid,block>>>(imwidth, tdim,  bsize, cuda_output, cuda_pose, cuda_template, cuda_gradOutput, cuda_gradTemplate, cuda_gradPose);
 
+	printf("before: %f\n", gradTemplate[0]);
+    cudaMemcpy(gradTemplate, cuda_gradTemplate, gradTemplate_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(gradPose, cuda_gradPose, gradPose_size, cudaMemcpyDeviceToHost);
+    printf("after: %f\n", gradTemplate[0]);
+    
     printf("CUDA status: %d\n", cudaDeviceSynchronize());
 }
 
