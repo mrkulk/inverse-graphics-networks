@@ -115,6 +115,15 @@ function basic_torch()
   print(grad[2])
 end
 
+function istensorEqtest(t1,t2)
+  local errors = torch.sum(t1-t2)
+  if errors == 0 then
+    return "OK"
+  else
+    return "FAILED"
+  end
+end
+
 function custom_cuda_kernels()
   require("gradACRWrapper")
   local ACR_helper = require("ACR_helper")
@@ -123,11 +132,11 @@ function custom_cuda_kernels()
   --------------- GPU --------------
   imwidth = 32; 
   tdim = 11; 
-  bsize = 30; 
-  output = torch.rand(bsize,imwidth,imwidth)
-  pose = torch.rand(bsize,3,3)
-  template = torch.rand(bsize,tdim,tdim)
-  gradOutput = torch.rand(bsize, imwidth, imwidth)
+  bsize = 1; 
+  output = torch.rand(bsize,imwidth,imwidth); prev_output=output:clone()
+  pose = torch.rand(bsize,3,3); prev_pose = pose:clone()
+  template = torch.rand(bsize,tdim,tdim); prev_template = template:clone();
+  gradOutput = torch.rand(bsize, imwidth, imwidth); prev_gradOutput = gradOutput:clone();
 
   gradTemplate = torch.zeros(bsize, tdim, tdim)
   gradPose = torch.zeros(bsize, 3 , 3)
@@ -141,26 +150,33 @@ function custom_cuda_kernels()
     output:reshape(bsize*imwidth*imwidth), pose:reshape(bsize*3*3), 
     template:reshape(bsize*tdim*tdim), gradOutput:reshape(bsize*imwidth*imwidth), gradAll)
 
-  gradTemplate = res[{{1, bsize*tdim*tdim}}]:reshape(bsize, tdim, tdim)
-  gradPose = res[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3)
+  gpu_gradTemplate = res[{{1, bsize*tdim*tdim}}]:reshape(bsize, tdim, tdim):clone()
+  gpu_gradPose = res[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3):clone()
   --print(gradTemplate:size())
   --print(gradPose:size())
 
   ------------- CPU -----------------
   endhere_x = output:size()[2]; endhere_y = output:size()[3];
-  _gradTemplate = torch.zeros(bsize, tdim, tdim)
-  _gradPose = torch.zeros(bsize, 3 , 3)
+  cgradTemplate = torch.zeros(bsize, tdim, tdim)
+  cgradPose = torch.zeros(bsize, 3 , 3)
 
   cpu_gradTemplate, cpu_gradPose = ACR_helper:gradHelper("singlecore", 1, 1, endhere_x, endhere_y, 
-              output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
+              output, pose, bsize, template, gradOutput, cgradTemplate, cgradPose)
 
   print('------------------------------------------------------------')
-  print('gradTemplate Errors: ', torch.sum(cpu_gradTemplate - gradTemplate))
-  print('gradPose Errors: ', torch.sum(cpu_gradPose - gradPose))
-  --print('cpu:')
-  --print(cpu_gradPose)
-  --print('gpu:')
-  --print(gradPose)
+  print('gradTemplate Errors: ', torch.sum(cpu_gradTemplate - gpu_gradTemplate))
+  print('gradPose Errors: ', torch.sum(cpu_gradPose - gpu_gradPose))
+  print('--------Test to make sure others variables unchanged -------')
+  print('output: ', istensorEqtest(output, prev_output))
+  print('pose: ', istensorEqtest(pose, prev_pose))
+  print('template: ', istensorEqtest(template, prev_template))
+  print('gradOutput: ', istensorEqtest(gradOutput, prev_gradOutput))
+  
+  
+  print('cpu:')
+  print(cpu_gradPose)
+  print('gpu:')
+  print(gpu_gradPose)
 end
 
 --test_threads()

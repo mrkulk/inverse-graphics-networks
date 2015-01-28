@@ -3,7 +3,7 @@
 -- require 'xlua'
 local ACR_helper = require 'ACR_helper'
 local ACR, Parent = torch.class('nn.ACR', 'nn.Module')
---require("gradACRWrapper")
+require("gradACRWrapper") -- GPU CUDA kernel for fast gradient (ACR)
 
 parallel = require 'parallel'
 local Threads = require 'threads'
@@ -20,7 +20,6 @@ end
 
 
 function ACR:updateOutput(input)
-  --profile:start('ACR_updateOutput')
 
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
@@ -28,34 +27,34 @@ function ACR:updateOutput(input)
   local pose = iGeoPose[{{},{1,9}}]:reshape(bsize,3,3)
   local intensity = iGeoPose[{{}, {10}}]:reshape(bsize)
 
-  for output_x = 1, self.output:size()[2] do
-    for output_y = 1, self.output:size()[3] do
-      output_coords = torch.Tensor({output_x, output_y, 1})
+  local GPU = 0;
+  if GPU == 1 then
+    a=1;
+  else
+    for output_x = 1, self.output:size()[2] do
+      for output_y = 1, self.output:size()[3] do
+        output_coords = torch.Tensor({output_x, output_y, 1})
 
-      --template_coords = pose * output_coords
-      --self.output[output_x][output_y] = ACR_helper:getInterpolatedTemplateValue(
-      --                                          template,
-      --                                          template_coords[1],
-      --                                          template_coords[2])
+        --template_coords = pose * output_coords
+        --self.output[output_x][output_y] = ACR_helper:getInterpolatedTemplateValue(
+        --                                          template,
+        --                                          template_coords[1],
+        --                                          template_coords[2])
 
-      template_coords = torch.zeros(bsize, 3)
-      for i=1, bsize do
-        template_coords[{i, {}}] = pose[{bsize,{},{}}]*output_coords
+        template_coords = torch.zeros(bsize, 3)
+        for i=1, bsize do
+          template_coords[{i, {}}] = pose[{bsize,{},{}}]*output_coords
+        end
+
+        self.output[{{}, output_x, output_y}] = torch.cmul(intensity, ACR_helper:getInterpolatedTemplateValue(
+                                                    bsize,
+                                                    template,
+                                                    template_coords[{{},1}], -- x
+                                                    template_coords[{{},2}])) -- y
+
       end
-
-      self.output[{{}, output_x, output_y}] = torch.cmul(intensity, ACR_helper:getInterpolatedTemplateValue(
-                                                  bsize,
-                                                  template,
-                                                  template_coords[{{},1}], -- x
-                                                  template_coords[{{},2}])) -- y
-
     end
   end
-
-  --self.output = self.output * intensity[1]
-  --profile:lap('ACR_updateOutput')
-
-  --profile:printAll()
 
   return self.output
 end
@@ -145,9 +144,27 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local runMulticore = 0
+  local GPU = 1
 
-  if runMulticore == 1 then
+  if GPU == 1 then
+    --------------- GPU --------------
+    local imwidth = self.output:size()[2]; 
+    local tdim = template:size()[2]; 
+    --pack both grad outputs in one structure for lua-C interface and then unpack
+    local gradAll = torch.zeros(bsize*tdim*tdim + bsize*3*3)
+    gradAll[{{1, bsize*tdim*tdim}}]=self.gradTemplate:reshape(bsize*tdim*tdim)
+    gradAll[{{bsize*tdim*tdim+1, bsize*tdim*tdim+ bsize*3*3}}]=self.gradPose:reshape(bsize*3*3)
+
+    res = gradACRWrapper(imwidth, tdim, bsize, 
+      self.output:reshape(bsize*imwidth*imwidth), pose:reshape(bsize*3*3), 
+      template:reshape(bsize*tdim*tdim), gradOutput:reshape(bsize*imwidth*imwidth), 
+      gradAll)
+
+    --unpack from lua-C interface
+    self.gradTemplate = res[{{1, bsize*tdim*tdim}}]:reshape(bsize, tdim, tdim)
+    self.gradPose = res[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3)
+
+    --[[
     print('Running Multicore ... ')
 
     if false then
@@ -228,8 +245,10 @@ function ACR:updateGradInput(input, gradOutput)
       acr_threads:synchronize()-- wait for all jobs to finish
       --print(string.format('%d jobs done', jobdone))
       acr_threads:terminate()
-      --]]
-    end
+      -
+    end 
+
+    --]]
   else
 
     start_x = 1; start_y=1;  endhere_x = self.output:size()[2]; endhere_y = self.output:size()[3]

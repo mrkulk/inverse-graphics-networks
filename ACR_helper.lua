@@ -126,6 +126,16 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       gradPose[{{},2,3}] = gradPose[{{},2,3}] +  
               torch.cmul(gradOutput[{{},output_x,output_y}], cache5) - cache6 - cache7 + cache8
 
+      --print(output_x, output_y, cache14[1])
+      if output_x == 3 and output_y == 4 then
+        print('CPU:', cache14[1])
+        --for i = 1, 3 do
+        --  for j = 1, 3 do
+        --    print(pose[1][i][j])
+        --  end
+        --end
+      end
+
       --print('posegrad:' , sys.toc())
     end
   end
@@ -135,17 +145,22 @@ end
 
 
 function ACR_helper:getTemplateValue(bsize, template, template_x, template_y)
-  template_x_size = template:size()[2] + 1
-  template_y_size = template:size()[3] + 1
-  output_x = torch.floor(template_x + template_x_size / 2)
-  output_y = torch.floor(template_y + template_y_size / 2)
+  local template_x_size = template:size()[2] + 1
+  local template_y_size = template:size()[3] + 1
+  local output_x = torch.floor(template_x + template_x_size / 2)
+  local output_y = torch.floor(template_y + template_y_size / 2)
 
-  res = torch.zeros(bsize)
+  local res = torch.zeros(bsize)
   for i = 1,bsize do
-    if output_x[i] < 1 or output_x[i] > template:size()[2]
-      or output_y[i] < 1 or output_y[i] > template:size()[3] then
+    if output_x[i] < 1 or output_x[i] > template:size()[2] or output_y[i] < 1 or output_y[i] > template:size()[3] then
       res[i] = 0
     else
+      --[[if output_x[i] > template:size()[2] or output_x[i] < 1 then
+        print('WTF-x')
+      end
+      if output_y[i] > template:size()[3] or output_y[i] < 1 then
+        print('WTF-y')
+      end--]]
       res[i] = template[i][output_x[i]][output_y[i]]
     end
   end
