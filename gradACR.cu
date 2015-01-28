@@ -170,17 +170,46 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *output, double *pose, 
 						double *_template, double *gradOutput, double *gradTemplate, double *gradPose)
 {	
-	
-/*
-	//setup GPU grid and block structure
-	//dim3 grid; grid.x=32; grid.y = 32;
-	dim3 grid; grid.x=3; grid.y = 3;
+	int output_size = sizeof(double) * bsize * imwidth * imwidth ;
+	int pose_size =  sizeof(double) * bsize * 3 * 3;
+	int template_size = sizeof(double) * bsize * tdim * tdim ;
+	int gradOutput_size = sizeof(double) * bsize * imwidth * imwidth;
+	int gradTemplate_size = sizeof(double) * bsize * tdim * tdim;
+	int gradPose_size = sizeof(double) * bsize * 3 * 3;
 
-	//dim3 block; block.x=1; block.y=1; block.z=bsize;
-	dim3 block; block.x=1; block.y=1; block.z=2;
+ 	double *cuda_output, *cuda_pose, *cuda_template, 
+ 		   *cuda_gradOutput, *cuda_gradTemplate, *cuda_gradPose; 
+
+	cudaMalloc((void**)&cuda_output, output_size);
+	cudaMemcpy(cuda_output, output, output_size, cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&cuda_pose, pose_size);
+	cudaMemcpy(cuda_pose, pose, pose_size, cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&cuda_template, template_size);
+	cudaMemcpy(cuda_template, _template, template_size, cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&cuda_gradOutput, gradOutput_size);
+	cudaMemcpy(cuda_gradOutput, gradOutput, gradOutput_size, cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&cuda_gradTemplate, gradTemplate_size);
+	cudaMemcpy(cuda_gradTemplate, gradTemplate, gradTemplate_size, cudaMemcpyHostToDevice);
+
+	cudaMalloc((void**)&cuda_gradPose, gradPose_size);
+	cudaMemcpy(cuda_gradPose, gradPose, gradPose_size, cudaMemcpyHostToDevice);
+
+	cudaMemset((void **)&cuda_gradTemplate, 0, gradTemplate_size);
+	cudaMemset((void **)&cuda_gradPose, 0, gradPose_size);
+	
+	//setup GPU grid and block structure
+	dim3 grid; grid.x=32; grid.y = 32;
+	//dim3 grid; grid.x=3; grid.y = 3;
+
+	dim3 block; block.x=1; block.y=1; block.z=bsize;
+	//dim3 block; block.x=1; block.y=1; block.z=2;
 
     getgradient<<<grid,block>>>(imwidth, tdim,  bsize, cuda_output, cuda_pose, cuda_template, cuda_gradOutput, cuda_gradTemplate, cuda_gradPose);
-*/  
+
     printf("CUDA status: %d\n", cudaDeviceSynchronize());
 }
 

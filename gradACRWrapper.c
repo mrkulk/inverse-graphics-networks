@@ -102,13 +102,6 @@ static int gradACRWrapper(lua_State *L){
   	double *gradTemplate = gradAll;
   	double *gradPose = gradAll + bsize*tdim*tdim; 
 
-	int output_size = sizeof(double) * bsize * imwidth * imwidth ;
-	int pose_size =  sizeof(double) * bsize * 3 * 3;
-	int template_size = sizeof(double) * bsize * tdim * tdim ;
-	int gradOutput_size = sizeof(double) * bsize * imwidth * imwidth;
-	int gradTemplate_size = sizeof(double) * bsize * tdim * tdim;
-	int gradPose_size = sizeof(double) * bsize * 3 * 3;
-
 	get_gradACR_gradient( imwidth, tdim, bsize, output, pose, 
 					 _template,  gradOutput,  gradTemplate,  gradPose);	
 	return 1;  
