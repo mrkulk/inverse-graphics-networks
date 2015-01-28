@@ -67,9 +67,6 @@ static void stackDump (lua_State *L) {
 
 static int gradACRWrapper(lua_State *L){                
 	//stackDump(L);
-	
-	//void* val = lua_touserdata(L, 2);
-	//printf("val: %d\n", &val);
 
 	static const void* torch_DoubleTensor_id = NULL;
   	torch_DoubleTensor_id = luaT_checktypename2id(L, "torch.DoubleTensor");
@@ -85,8 +82,11 @@ static int gradACRWrapper(lua_State *L){
 	
 	printf("sz:%f\n", arg1->storage->data[1]);
 
-	arg2 = 9;
-	lua_pushnumber(L, (lua_Number)arg2);
+	//arg2 = 9;
+	//lua_pushnumber(L, (lua_Number)arg2);
+	
+	//lua_push
+	stackDump(L);
 	return 1;  
 
 }
