@@ -3,7 +3,7 @@
 -- require 'xlua'
 local ACR_helper = require 'ACR_helper'
 local ACR, Parent = torch.class('nn.ACR', 'nn.Module')
-
+--require("gradACRWrapper")
 
 parallel = require 'parallel'
 local Threads = require 'threads'
@@ -78,10 +78,11 @@ function worker()
     if m == 'break' then break end
     -- receive data
     local t = parallel.parent:receive()
-    --parallel.print('received: ', t.gradTemplate)
+    parallel.print('received: ', t.gradTemplate)
     -- send some data back
     parallel.parent:send('dfdf')
   end --]]
+  
   local t = parallel.parent:receive()
   parallel.parent:send('dfdf')
 end
@@ -125,7 +126,7 @@ function parent(grid_size, output, gradOutput, pose, bsize, template, gradTempla
    end
    replies = parallel.children:receive()   
    -- sync/terminate when all workers are done
-   -- parallel.children:join('break')
+   parallel.children:join('break')
    parallel.close()
 end
 
@@ -149,9 +150,10 @@ function ACR:updateGradInput(input, gradOutput)
   if runMulticore == 1 then
     print('Running Multicore ... ')
 
-    if false then
+    if true then
       -- protected execution:
-      parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
+      -- parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
+      gradACRWrapper(0)
     else
       --using threads-ffi package
       local njob = 2*2 --divide image into 4x4 block
@@ -159,9 +161,9 @@ function ACR:updateGradInput(input, gradOutput)
       local gradTemplate = torch.Tensor(self.gradTemplate:size())
       local gradPose = torch.Tensor(self.gradPose:size())
 
-      local nthread = njob
+      local nthread = 2
 
-      sdl.init(0)
+      sdl.init(1)
 
       local acr_threads = Threads(nthread,
          function()
@@ -209,7 +211,7 @@ function ACR:updateGradInput(input, gradOutput)
                 
                 --gradTemplate_thread = torch.zeros(20, 11,11)
                 --gradPose_thread = torch.zeros(20,7)
-                print('[thread finished] jobid:',jid)
+                --print('[thread finished] jobid:',jid)
                 return gradTemplate_thread, gradPose_thread
             end,
             -- takes output of the previous function as argument
