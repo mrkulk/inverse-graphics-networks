@@ -81,7 +81,7 @@ static int gradACRWrapper(lua_State *L){
 		luaL_error(L, "expected arguments: DoubleTensor");
 	
 	printf("sz:%f\n", arg1->storage->data[1]);
-
+	arg1->storage->data[1] = 6699;
 	//arg2 = 9;
 	//lua_pushnumber(L, (lua_Number)arg2);
 	

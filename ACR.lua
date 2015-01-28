@@ -150,7 +150,7 @@ function ACR:updateGradInput(input, gradOutput)
   if runMulticore == 1 then
     print('Running Multicore ... ')
 
-    if true then
+    if false then
       -- protected execution:
       -- parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
       gradACRWrapper(0)
