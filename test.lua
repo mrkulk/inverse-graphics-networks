@@ -119,7 +119,14 @@ function custom_cuda_kernels()
   require("gradACRWrapper")
   -- args:(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
   
-  print(gradACRWrapper(5))
+  data = torch.rand(5)*10 + 3
+  print("Sending:")
+  print(data)
+  res = gradACRWrapper(data)
+  print("In Lua:")
+  print(res)
+  --print(res[1])
+  --print(res[2])
 end
 
 --test_threads()

@@ -157,11 +157,17 @@ function ACR_helper:getInterpolatedTemplateValue(bsize, template, template_x, te
   template_y = template_y - 1/2
 
   local x_high_coeff = torch.Tensor(bsize)
-  x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
-  x_low_coeff  =  -x_high_coeff + 1
-
   local y_high_coeff = torch.Tensor(bsize)
-  y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
+  
+  --x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
+  --y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
+
+  for i=1,bsize do
+    x_high_coeff[i] = math.fmod(template_x[i],1)
+    y_high_coeff[i] = math.fmod(template_y[i],1)
+  end
+
+  x_low_coeff  =  -x_high_coeff + 1
   y_low_coeff  =  -y_high_coeff + 1
 
   x_low  = torch.floor(template_x)
