@@ -46,6 +46,10 @@ function ParallelParallel:__init(inputDimension,outputDimension)
    self.size = torch.LongStorage()
    self.inputDimension = inputDimension
    self.outputDimension = outputDimension
+   self.childThreads = {}
+
+   -- make self.childThreads act just like parallel.children
+   parallel._fill(self.childThreads)
 
    -- self.ll = LL:new(nThreads, {'nn', 'ParallelParallel', 'Bias', 'ACR', 'INTM'})
 end
@@ -53,6 +57,7 @@ end
 function ParallelParallel:add(mod)
    local child = parallel.fork()
    child:exec(moduleWrapper)
+   table.insert(self.childThreads, child)
    table.insert(self.modules, mod)
    -- os.execute("sleep " .. tonumber(1))
    return self
@@ -65,21 +70,21 @@ function ParallelParallel:updateOutput(input)
    -- parallel.print("issuing join")
 
    for i = 1, #self.modules do
-      parallel.children[i]:join()
+      self.childThreads[i]:join()
       -- parallel.print("sending module")
-      parallel.children[i]:send({'module', self.modules[i]})
+      self.childThreads[i]:send({'module', self.modules[i]})
    end
 
    -- parallel.print("issuing join #2")
    -- parallel.children:join()
    for i = 1, #self.modules do
-      parallel.children[i]:join()
+      self.childThreads[i]:join()
       local currentInput = input:select(self.inputDimension,i)
       -- parallel.print("sending updateOutput")
-      parallel.children[i]:send({'updateOutput', currentInput})
+      self.childThreads[i]:send({'updateOutput', currentInput})
    end
 
-   local updatedModules = parallel.children:receive()
+   local updatedModules = self.childThreads:receive()
 
    -- local inputDimension = self.inputDimension
    -- local runModule = function(inputTensor, i, module)
@@ -118,18 +123,18 @@ function ParallelParallel:updateGradInput(input, gradOutput)
    local offset = 1
 
    for i = 1, #self.modules do
-      parallel.children[i]:join()
-      parallel.children[i]:send({'module', self.modules[i]})
+      self.childThreads[i]:join()
+      self.childThreads[i]:send({'module', self.modules[i]})
    end
 
    for i = 1, #self.modules do
-      parallel.children[i]:join()
+      self.childThreads[i]:join()
       local currentInput = input:select(self.inputDimension,i)
       local currentOutput = self.modules[i].output
       local outputSize = currentOutput:size(self.outputDimension)
       local currentGradOutput = gradOutput:narrow(self.outputDimension, offset, outputSize)
       -- parallel.print(currentGradOutput)
-      parallel.children[i]:send({'updateGradInput', {currentInput, currentGradOutput}})
+      self.childThreads[i]:send({'updateGradInput', {currentInput, currentGradOutput}})
    end
 
    local updatedModules = parallel.children:receive()
