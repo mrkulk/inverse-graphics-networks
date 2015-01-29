@@ -126,15 +126,15 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       gradPose[{{},2,3}] = gradPose[{{},2,3}] +  
               torch.cmul(gradOutput[{{},output_x,output_y}], cache5) - cache6 - cache7 + cache8
 
-      --print(output_x, output_y, cache14[1])
-      if output_x == 3 and output_y == 4 then
-        print('CPU:', cache14[1])
+      --print(output_x, output_y,gradPose[{{},2,3}][1] )
+      --if output_x == 3 and output_y == 4 then
+      --  print('CPU:',  template_val_xlow_ylow[1], template_val_xlow_yhigh[1], template_val_xhigh_ylow[1], template_val_xhigh_yhigh[1])
         --for i = 1, 3 do
         --  for j = 1, 3 do
         --    print(pose[1][i][j])
         --  end
         --end
-      end
+      --end
 
       --print('posegrad:' , sys.toc())
     end

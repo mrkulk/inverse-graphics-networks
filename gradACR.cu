@@ -27,7 +27,7 @@ __device__ double kernel_getTemplateValue(int bsize,int tdim, int bid, double *k
 	int output_x =  floor(template_x + template_x_size/2) - 1; //because we added +1 in beginning
 	int output_y = floor(template_y + template_y_size/2) - 1; //because we added +1 in beginning
 
-	if (output_x < 1 || output_x > tdim || output_y < 1 || output_y > tdim) {
+	if (output_x < 0 || output_x >= tdim || output_y < 0 || output_y >= tdim) {
 		res = 0.0;
 	}
 	else {
@@ -167,16 +167,26 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 	atomicAdd_double(&(cuda_gradPose[bid*9 + 4]), cache14 * output_y);
 	atomicAdd_double(&(cuda_gradPose[bid*9 + 5]), (cache_gradOutput_outputx_outputy*cache5)-cache6-cache7+cache8);	
 	
-	//printf("%d %d %f\n",output_x, output_y ,cache14);
-	/*if (output_x == 3 && output_y==4) {
-		printf("GPU: %f \n", cache14);
+	
+	//cuda_gradPose[bid*9] += cache13*output_x;
+	//cuda_gradPose[bid*9+1] = 2;
+	//cuda_gradPose[bid*9+2] = 3;
+	//cuda_gradPose[bid*9+3] = 4;
+	//cuda_gradPose[bid*9+4] = 5;
+	//cuda_gradPose[bid*9+5] = 6;
+
+
+	//printf("%d %d %f\n",output_x, output_y ,cache_gradOutput_outputx_outputy);
+	if (output_x == 3 && output_y==4) {
+		printf("\n\nGPU: %f %f %f %f\n", template_val_xlow_ylow, template_val_xlow_yhigh, template_val_xhigh_ylow, template_val_xhigh_yhigh);
+
 		//for (i=0;i<11;i++) {
 		//	printf("\n");
 		//	for (j=0;j<11;j++) {
 		//		printf("%.4f ", cuda_template[i*11 + j]);
 		//	}	
 		//}
-	}*/
+	}
 }		
 
 
