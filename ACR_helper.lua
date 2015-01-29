@@ -36,7 +36,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
       --x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
       --y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
-      
+
       for i=1,bsize do
         x_high_coeff[i] = math.fmod(template_x[i],1)
         y_high_coeff[i] = math.fmod(template_y[i],1)
@@ -78,7 +78,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
       template_val_xlow_ylow = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)
       template_val_xlow_yhigh = ACR_helper:getTemplateValue(bsize, template, x_low, y_high)
-      
+
       pose_1_1 = pose[{{},1,1}]
       pose_1_2 = pose[{{},1,2}]
       pose_1_3 = pose[{{},1,3}]
@@ -103,7 +103,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       cache11 = torch.cmul(template_val_xhigh_ylow - template_val_xlow_ylow, cache2)
 
       cache12 = torch.cmul(
-              gradOutput[{{},output_x,output_y}], 
+              gradOutput[{{},output_x,output_y}],
               torch.cmul(template_val_xhigh_yhigh - template_val_xlow_yhigh, cache1)
             )
 
@@ -123,7 +123,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
       gradPose[{{},2,2}] = gradPose[{{},2,2}] + cache14*output_y
 
-      gradPose[{{},2,3}] = gradPose[{{},2,3}] +  
+      gradPose[{{},2,3}] = gradPose[{{},2,3}] +
               torch.cmul(gradOutput[{{},output_x,output_y}], cache5) - cache6 - cache7 + cache8
 
       --print('posegrad:' , sys.toc())
@@ -158,7 +158,7 @@ function ACR_helper:getInterpolatedTemplateValue(bsize, template, template_x, te
 
   local x_high_coeff = torch.Tensor(bsize)
   local y_high_coeff = torch.Tensor(bsize)
-  
+
   --x_high_coeff:map(template_x, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x % 1
   --y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
 

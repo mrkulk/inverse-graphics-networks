@@ -13,10 +13,11 @@ function moduleWrapper()
 
   torch.setnumthreads(1)
 
+  parallel.yield()
   local mod = nil
   while true do
-    m = parallel.yield()
-    if m == 'break' then break end
+    -- m = parallel.yield()
+    -- if m == 'break' then break end
 
     local message = parallel.parent:receive()
     local messageType = message[1]
@@ -82,32 +83,12 @@ end
 function ParallelParallel:updateOutput(input)
   local nModule=input:size(self.inputDimension)
 
-  -- parallel.print(parallel.children)
-  -- parallel.print("issuing join")
-
-  -- for i = 1, #self.modules do
-  --   self.childThreads[i]:join()
-  --   -- parallel.print("sending module")
-  --   self.childThreads[i]:send({'module', self.modules[i]})
-  -- end
-
-  -- parallel.print("issuing join #2")
-  -- parallel.children:join()
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
     local currentInput = input:select(self.inputDimension,i)
-    -- parallel.print("sending updateOutput")
     self.childThreads[i]:send({'updateOutput', currentInput})
   end
 
   local outputs = self.childThreads:receive()
-
-  -- local inputDimension = self.inputDimension
-  -- local runModule = function(inputTensor, i, module)
-  --    local currentInput = inputTensor:select(inputDimension,i)
-  --    return module:updateOutput(currentInput)
-  -- end
-  -- local outputs = self.ll:pmap_mut(self.modules, moses.bind(runModule, input))
 
   for i = 1, #outputs do
     self.modules[i].output = outputs[i]
@@ -144,7 +125,7 @@ function ParallelParallel:updateGradInput(input, gradOutput)
   -- end
 
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     local currentInput = input:select(self.inputDimension,i)
     local currentOutput = self.modules[i].output
     local outputSize = currentOutput:size(self.outputDimension)
@@ -174,7 +155,7 @@ function ParallelParallel:accGradParameters(input, gradOutput, scale)
     local currentOutput = mod.output
     local outputSize = currentOutput:size(self.outputDimension)
 
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({
       'accGradParameters',
       {input:select(self.inputDimension,i),
@@ -199,7 +180,7 @@ function ParallelParallel:accUpdateGradParameters(input, gradOutput, lr)
     local mod = self.modules[i];
     local currentOutput = mod.output
 
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({
       'accUpdateGradParameters',
       {input:select(self.inputDimension,i),
@@ -219,42 +200,42 @@ end
 
 function ParallelParallel:zeroGradParameters()
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({'zeroGradParameters'})
   end
 end
 
 function ParallelParallel:training()
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({'training'})
   end
 end
 
 function ParallelParallel:evaluate()
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({'evaluate'})
   end
 end
 
 function ParallelParallel:reset(stdv)
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({'reset', stdv})
   end
 end
 
 function ParallelParallel:updateParameters(learningRate)
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({'updateParameters', learningRate})
   end
 end
 
 function ParallelParallel:share(mlp, ...)
   for i = 1, #self.modules do
-    self.childThreads[i]:join()
+    -- self.childThreads[i]:join()
     self.childThreads[i]:send({'share', {mlp.modules[i], ...}})
   end
 end
