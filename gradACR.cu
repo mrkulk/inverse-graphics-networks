@@ -177,8 +177,8 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 
 
 	//printf("%d %d %f\n",output_x, output_y ,cache_gradOutput_outputx_outputy);
-	if (output_x == 3 && output_y==4) {
-		printf("\n\nGPU: %f %f %f %f\n", template_val_xlow_ylow, template_val_xlow_yhigh, template_val_xhigh_ylow, template_val_xhigh_yhigh);
+	//if (output_x == 3 && output_y==4) {
+	//	printf("\n\nGPU: %f %f %f %f\n", template_val_xlow_ylow, template_val_xlow_yhigh, template_val_xhigh_ylow, template_val_xhigh_yhigh);
 
 		//for (i=0;i<11;i++) {
 		//	printf("\n");
@@ -186,7 +186,7 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 		//		printf("%.4f ", cuda_template[i*11 + j]);
 		//	}	
 		//}
-	}
+	//}
 }		
 
 
