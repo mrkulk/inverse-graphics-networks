@@ -23,6 +23,7 @@ require 'math'
 require 'parallel'
 
 
+
 if params.gpu then
   require 'cutorch'
   require 'cunn'
@@ -35,6 +36,7 @@ require 'INTM'
 require 'Bias'
 require 'ACR'
 require 'ParallelParallel'
+require 'PrintModule'
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
@@ -64,7 +66,7 @@ end
 trainset = getDigitSet(1)
 
 --number of acr's
-num_acrs = 9
+num_acrs = 1
 image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
@@ -75,6 +77,7 @@ architecture = nn.Sequential()
 encoder = nn.Sequential()
 encoder:add(nn.Reshape(image_width * image_width))
 encoder:add(nn.Linear(image_width * image_width,h1size))
+encoder:add(nn.PrintModule())
 encoder:add(nn.Tanh())
 encoder:add(nn.Linear(h1size, outsize))
 
@@ -100,8 +103,28 @@ for ii=1,num_acrs do
   acr_wrapper:add(nn.SplitTable(1))
 
   local acr_in = nn.ParallelTable()
-  acr_in:add(nn.Bias(bsize, 11*11))
-  acr_in:add(nn.INTM(bsize, 7,intm_out_dim))
+  local biasWrapper = nn.Sequential()
+    biasWrapper:add(nn.Bias(bsize, 11*11))
+    -- biasWrapper:add(nn.PrintModule())
+    biasWrapper:add(nn.Exp())
+    biasWrapper:add(nn.AddConstant(1))
+    biasWrapper:add(nn.Log())
+  acr_in:add(biasWrapper)
+
+  local INTMWrapper = nn.Sequential()
+    local splitter = nn.Parallel(2,2)
+      for i = 1,6 do
+        splitter:add(nn.Reshape(bsize, 1))
+      end
+      local intensityWrapper = nn.Sequential()
+        intensityWrapper:add(nn.Exp())
+        intensityWrapper:add(nn.AddConstant(1))
+        intensityWrapper:add(nn.Log())
+        intensityWrapper:add(nn.Reshape(bsize, 1))
+      splitter:add(intensityWrapper)
+    INTMWrapper:add(splitter)
+    INTMWrapper:add(nn.INTM(bsize, 7,intm_out_dim))
+  acr_in:add(INTMWrapper)
   acr_wrapper:add(acr_in)
   acr_wrapper:add(nn.ACR(bsize, image_width))
 
@@ -136,7 +159,8 @@ end
 
 
 function saveACRs(step, model)
-  acrs = model:findModules('nn.ACR')
+  -- acrs = model:findModules('nn.ACR')
+  acrs = model.modules[3].modules
   padding = 5
   acrs_across = math.ceil(math.sqrt(#acrs))
   acrs_down = math.ceil(#acrs / acrs_across)
@@ -165,16 +189,19 @@ for i = 1, 30 do
 
 
   if i % 1 == 0 then
-    local out = torch.clamp(torch.reshape(architecture.output[1], 1,image_width,image_width), 0,1)
-    --saveACRs(i, architecture)
-    --image.save("test_images/step_"..i.."_recon.png", out)
+    print(encoder.output[1]:reshape(num_acrs, 7))
+    local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
+    saveACRs(i, architecture)
+    -- image.save("test_images/step_"..i.."_recon.png", out)
     --image.save("test_images/step_"..i.."_truth.png", batch[1])
   end
 
   architecture:zeroGradParameters()
   architecture:backward(batch, criterion:backward(architecture.output, batch))
-  architecture:updateParameters(0.000001)
+  architecture:updateParameters(0.0000001)
 
+  testOut = architecture:forward(trainset[{{1, 30}}])
+  image.save("test_images/step_"..i.."_fixed.png", torch.reshape(testOut[1], 1, image_width, image_width))
 end
 
 parallel.close()

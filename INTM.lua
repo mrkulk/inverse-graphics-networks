@@ -23,20 +23,21 @@ input = [t1, t2, s1,s2, z, theta, intensity]
 
 function INTM:updateOutput(input)
   --self.output = input[{{1,self.output_dim}}]*10
+  -- print(input[{{},7}]:sum())
   t1=input[{{},1}]
   t2=input[{{},2}]
   s1=input[{{},3}]
   s2=input[{{},4}]
   z=input[{{},5}]
   theta=input[{{},6}]
-  
+
   self.output[{{},1}]= torch.cmul(s1, torch.cos(theta)) --s1*math.cos(theta)
   self.output[{{},2}]= torch.cmul(s2,torch.sin(theta)- torch.cmul(z, torch.cos(theta)))  --s2*(math.sin(theta) - z*math.cos(theta))
   self.output[{{},3}]= torch.cmul(s1, torch.cmul(t1, torch.cos(theta))) - torch.cmul(s2,torch.cmul(t2,torch.sin(theta) - torch.cmul(z, torch.cos(theta))))  --s1*t1*math.cos(theta) - s2*t2*(math.sin(theta) - z*math.cos(theta))
   self.output[{{},4}]= torch.cmul(s1, torch.sin(theta)) --s1*math.sin(theta)
   self.output[{{},5}]= torch.cmul(s2, torch.cos(theta) +  torch.cmul(z, torch.sin(theta))) --s2*(math.cos(theta) + z*math.sin(theta))
   self.output[{{},6}]= torch.cmul(s1, torch.cmul(t1, torch.sin(theta))) + torch.cmul(s2, torch.cmul(t2, torch.cos(theta) + torch.cmul(z, torch.sin(theta)))) --s1*t1*math.sin(theta) + s2*t2*(math.cos(theta) + z*math.sin(theta))
-  self.output[{{},7}]=0; 
+  self.output[{{},7}]=0;
   self.output[{{},8}]=0;
   self.output[{{},9}]=1;
   self.output[{{},10}]=input[{{},7}]
@@ -78,20 +79,20 @@ d(transform)/dtheta
 --]]
 function INTM:updateGradInput(input, gradOutput)
   bsize = self.bsize
-  
+
   --gradOutput_reshaped = gradOutput[{{1,9}}]:reshape(3,3) --last is intensity
   local gradOutput_reshaped = torch.zeros(bsize, 3, 3)
   for i=1, bsize do
     gradOutput_reshaped[{i,{},{}}] = gradOutput[{i,{1,9}}]:reshape(3,3) --last is intensity
   end
-  
+
   t1=input[{{},1}]
   t2=input[{{},2}]
   s1=input[{{},3}]
   s2=input[{{},4}]
   z=input[{{},5}]
   theta=input[{{},6}]
-  
+
   grad_s1 = torch.zeros(bsize, 3,3)
   grad_s1[{{},1,1}]=torch.cos(theta); grad_s1[{{},1,3}]=torch.cmul(t1,torch.cos(theta))
   grad_s1[{{},2,1}]=torch.sin(theta); grad_s1[{{},1,2}]=torch.cmul(t1,torch.sin(theta))

@@ -74,6 +74,17 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
       --sys.tic()
 
+      -- matlab:
+      -- Ixy = [x_h - (a*x + b*y + c), (a*x + b*y + c) - x_l] * [T_ll, T_lh; T_hl, T_hh] * [y_h - (d*x + e*y + f); (d*x + e*y + f) - y_l]
+      -- gradient(Ixy, [a b c d e f])
+      --[[  (T_hh*x - T_lh*x)*(f - y_l + d*x + e*y) - (T_hl*x - T_ll*x)*(f - y_h + d*x + e*y)
+            (T_hh*y - T_lh*y)*(f - y_l + d*x + e*y) - (T_hl*y - T_ll*y)*(f - y_h + d*x + e*y)
+            (T_hh - T_lh)*(f - y_l + d*x + e*y) - (T_hl - T_ll)*(f - y_h + d*x + e*y)
+            x*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - x*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
+            y*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - y*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
+            T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y) - T_hl*(c - x_l + a*x + b*y) + T_ll*(c - x_h + a*x + b*y)
+      --]]
+
       template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
       template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
       template_val_xlow_ylow = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)

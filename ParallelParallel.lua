@@ -10,8 +10,34 @@ function moduleWrapper()
   require 'ACR'
   require 'INTM'
   require 'Bias'
+  require 'PrintModule'
 
   torch.setnumthreads(1)
+
+  -- function sanitize(m)
+  --   if torch.typename(m) then
+  --     local current = {}
+  --     for index, key in ipairs({'output', 'weight', 'bias', 'gradInput'}) do
+  --       current.key = m.key
+  --     end
+
+  --     local modules = {}
+  --     if m.modules then
+  --       for index, child in ipairs(m.modules) do
+  --         table.insert(modules, sanitize(child))
+  --       end
+  --     end
+  --     current.modules = modules
+  --     return current
+  --   elseif type(m) == 'table' then
+  --     local current = {}
+  --     for index, elem in ipairs(m) do
+  --       table.insert(current, sanitize(elem))
+  --     end
+  --   else
+  --     error("Must be a list of torch objects or a single one!")
+  --   end
+  -- end
 
   parallel.yield()
   local mod = nil
@@ -25,9 +51,9 @@ function moduleWrapper()
 
     if messageType == 'module' then
       mod = data
-      for i, m in pairs(mod:findModules('nn.ACR')) do
-        m:makeThreads()
-      end
+      -- for i, m in pairs(mod:findModules('nn.ACR')) do
+      --   m:makeThreads()
+      -- end
     elseif messageType == 'updateOutput' then
       parallel.parent:send(mod:updateOutput(data))
     elseif messageType == 'updateGradInput' then
@@ -48,6 +74,9 @@ function moduleWrapper()
       mod:evaluate(data[1], data[2])
     elseif messageType == 'reset' then
       mod:reset(data)
+    -- elseif messageType == 'findModules' then
+    --   local found = mod:findModules(data[1], data[2])
+    --   return sanitize(found)
     end
   end
 end
@@ -72,7 +101,12 @@ function ParallelParallel:add(mod)
   table.insert(self.childThreads, child)
 
   local localmod = {}
-  setmetatable(localmod, {__tostring__ = function () return tostring(mod) end})
+  setmetatable(localmod, {
+    __tostring = function()
+        return tostring(mod)
+      end
+
+    })
   table.insert(self.modules, localmod)
   child:join()
   child:send({'module', mod})
@@ -239,6 +273,44 @@ function ParallelParallel:share(mlp, ...)
     self.childThreads[i]:send({'share', {mlp.modules[i], ...}})
   end
 end
+
+-- function ParallelParallel:findModules(name, container)
+--   container = container or self
+--   local nodes = {}
+--   local containers = {}
+--   local mod_type = torch.typename(self)
+--   if mod_type == typename then
+--     nodes[#nodes+1] = self
+--     containers[#containers+1] = container
+--   end
+--   -- Recurse on nodes with 'modules'
+--   if (self.modules ~= nil) then
+--     if (torch.type(self.modules) == 'table') then
+--       for i = 1, #self.modules do
+--         local child = self.modules[i]
+--         local cur_nodes, cur_containers = child:findModules(typename, self)
+--         assert(#cur_nodes == #cur_containers,
+--           'Internal error: incorrect return length')  -- This shouldn't happen
+--         -- add the list items from our child to our list (ie return a
+--         -- flattened table of the return nodes).
+--         for j = 1, #cur_nodes do
+--           nodes[#nodes+1] = cur_nodes[j]
+--           containers[#containers+1] = cur_containers[j]
+--         end
+--       end
+--     end
+--   end
+--   -- return nodes, containers
+
+
+--   container = container or self
+
+--   for i = 1, #self.modules do
+--     self.childThreads[i]:send({'findModules', {}})
+--   end
+--   local results = self.childThreads:receive()
+--   -- return self.modules
+-- end
 
 function ParallelParallel:__tostring__()
   local tab = '  '
