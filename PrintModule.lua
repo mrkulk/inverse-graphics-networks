@@ -2,7 +2,7 @@
 local PrintModule, parent = torch.class('nn.PrintModule', 'nn.Module')
 
 function PrintModule:updateOutput(input)
-  -- print(input)
+  print(input)
   self.output = input
   return input
 end

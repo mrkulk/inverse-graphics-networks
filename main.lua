@@ -1,35 +1,10 @@
 -- Unsupervised Capsule Deep Network
 
 require 'torch'
---[[
-cmd = torch.CmdLine()
-cmd:text()
-cmd:text('Run this bad boy.')
-cmd:text()
-cmd:text('Options')
-cmd:option('--gpu',false,'use the GPU for the encoder')
-cmd:option('--threads', 4, 'how many threads to use')
-cmd:text()
-params = cmd:parse(arg)
---]]
-params = {}
---params['threads'] = 12
-
---torch.setdefaulttensortype('torch.CudaTensor')
---torch.setnumthreads(params.threads)
-
 require 'image'
 require 'math'
 require 'parallel'
-
-
-
-if params.gpu then
-  require 'cutorch'
-  require 'cunn'
-else
-  require 'nn'
-end
+require 'nn'
 
 require 'dataset-mnist'
 require 'INTM'
@@ -37,6 +12,7 @@ require 'Bias'
 require 'ACR'
 require 'ParallelParallel'
 require 'PrintModule'
+require 'INTMReg'
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
@@ -75,27 +51,18 @@ bsize = 30
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
-encoder:add(nn.Reshape(image_width * image_width))
-encoder:add(nn.Linear(image_width * image_width,h1size))
-encoder:add(nn.PrintModule())
-encoder:add(nn.Tanh())
-encoder:add(nn.Linear(h1size, outsize))
-
-if params.gpu then
-  architecture:add(nn.Copy('torch.FloatTensor', 'torch.CudaTensor'))
-  encoder:cuda()
-  architecture:add(nn.Copy('torch.CudaTensor', 'torch.DoubleTensor'))
-else
-  architecture:add(encoder)
-end
+  encoder:add(nn.Reshape(image_width * image_width))
+  encoder:add(nn.Linear(image_width * image_width,h1size))
+  -- encoder:add(nn.PrintModule())
+  encoder:add(nn.Tanh())
+  encoder:add(nn.Linear(h1size, outsize))
+architecture:add(encoder)
 
 architecture:add(nn.Reshape(num_acrs,7))
---architecture:add(nn.SplitTable(1))
-
 
 -- Creating intm and acr's
---decoder = nn.Parallel(2,2)
-decoder = nn.ParallelParallel(2,2)
+decoder = nn.Parallel(2,2)
+--decoder = nn.ParallelParallel(2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -105,7 +72,6 @@ for ii=1,num_acrs do
   local acr_in = nn.ParallelTable()
   local biasWrapper = nn.Sequential()
     biasWrapper:add(nn.Bias(bsize, 11*11))
-    -- biasWrapper:add(nn.PrintModule())
     biasWrapper:add(nn.Exp())
     biasWrapper:add(nn.AddConstant(1))
     biasWrapper:add(nn.Log())
@@ -124,6 +90,7 @@ for ii=1,num_acrs do
       splitter:add(intensityWrapper)
     INTMWrapper:add(splitter)
     INTMWrapper:add(nn.INTM(bsize, 7,intm_out_dim))
+    INTMWrapper:add(nn.INTMReg())
   acr_in:add(INTMWrapper)
   acr_wrapper:add(acr_in)
   acr_wrapper:add(nn.ACR(bsize, image_width))
@@ -181,7 +148,9 @@ function saveACRs(step, model)
 end
 
 
-for i = 1, 30 do
+local learning_rate = 0.000001
+
+for i = 1, 3 do
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
   --print(architecture:forward(batch))
@@ -198,7 +167,7 @@ for i = 1, 30 do
 
   architecture:zeroGradParameters()
   architecture:backward(batch, criterion:backward(architecture.output, batch))
-  architecture:updateParameters(0.0000001)
+  architecture:updateParameters(learning_rate)
 
   testOut = architecture:forward(trainset[{{1, 30}}])
   image.save("test_images/step_"..i.."_fixed.png", torch.reshape(testOut[1], 1, image_width, image_width))
