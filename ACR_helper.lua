@@ -5,6 +5,7 @@ require("sys")
 
 
 function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
+  -- print(gradOutput)
   if mode == "singlecore" then
     start_x = 1; start_y=1;
     endhere_x = output:size()[2]; endhere_y = output:size()[3]
@@ -74,15 +75,23 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
       --sys.tic()
 
-      -- matlab:
-      -- Ixy = [x_h - (a*x + b*y + c), (a*x + b*y + c) - x_l] * [T_ll, T_lh; T_hl, T_hh] * [y_h - (d*x + e*y + f); (d*x + e*y + f) - y_l]
-      -- gradient(Ixy, [a b c d e f])
-      --[[  (T_hh*x - T_lh*x)*(f - y_l + d*x + e*y) - (T_hl*x - T_ll*x)*(f - y_h + d*x + e*y)
-            (T_hh*y - T_lh*y)*(f - y_l + d*x + e*y) - (T_hl*y - T_ll*y)*(f - y_h + d*x + e*y)
-            (T_hh - T_lh)*(f - y_l + d*x + e*y) - (T_hl - T_ll)*(f - y_h + d*x + e*y)
-            x*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - x*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
-            y*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - y*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
-            T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y) - T_hl*(c - x_l + a*x + b*y) + T_ll*(c - x_h + a*x + b*y)
+      --[[
+        matlab:
+        -- geoPose = ((a,b,c),
+                      (d,e,f),
+                      (g,h,i))
+      --Ixy = [x_h - (a*x + b*y + c), (a*x + b*y + c) - x_l] * [T_ll, T_lh; T_hl, T_hh] * [y_h - (d*x + e*y + f); (d*x + e*y + f) - y_l]
+      -- gradient(Ixy, [a b c d e f]) <- gets gradient of pose
+      --[[a -> (T_hh*x - T_lh*x)*(f - y_l + d*x + e*y) - (T_hl*x - T_ll*x)*(f - y_h + d*x + e*y)
+          b -> (T_hh*y - T_lh*y)*(f - y_l + d*x + e*y) - (T_hl*y - T_ll*y)*(f - y_h + d*x + e*y)
+          c -> (T_hh - T_lh)*(f - y_l + d*x + e*y) - (T_hl - T_ll)*(f - y_h + d*x + e*y)
+          d -> x*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - x*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
+          e -> y*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - y*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
+          f -> T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y) - T_hl*(c - x_l + a*x + b*y) + T_ll*(c - x_h + a*x + b*y)
+      --]]
+
+      --[[
+         gradient(Ixy, [T_ll T_lh T_hl T_hh]) <- gradient of template at locations ll, lh, hl, hh
       --]]
 
       template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
@@ -150,7 +159,12 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       --print('posegrad:' , sys.toc())
     end
   end
-    return gradTemplate, gradPose
+
+  if tostring(torch.sum(gradPose)) == tostring(0/0) then
+    print('gradOutput:', torch.sum(gradOutput))
+  end
+
+  return gradTemplate, gradPose
     --]]
 end
 

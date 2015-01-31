@@ -134,13 +134,17 @@ function ACR:updateGradInput(input, gradOutput)
   local pose = iGeoPose[{{},{1,9}}]:reshape(bsize,3,3)
   local intensity = iGeoPose[{{}, {10}}]:reshape(bsize)
 
+
+  -- print("IGP: ", iGeoPose)
+  -- print("intensity:", intensity)
+
   self.gradTemplate = self.gradTemplate or torch.Tensor(template:size())
   self.gradTemplate:fill(0)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local GPU = 1
-  local runMulticore = 1
+  local GPU = 0
+  local runMulticore = 0
 
   if GPU == 1 then
     --------------- GPU --------------
@@ -228,11 +232,16 @@ function ACR:updateGradInput(input, gradOutput)
                                                               gradOutput, self.gradTemplate, self.gradPose)
   end
 
+  -- print("intensity, later: ", intensity)
+  -- print("I AM A BANANA")
+  --scaling gradient with intensity
+  print("gradPose before intensity", self.gradPose:sum())
   for i=1,bsize do
     self.gradTemplate[{i,{},{}}] = self.gradTemplate[{i,{},{}}] * intensity[i]
     self.gradPose[{i,{},{}}] = self.gradPose[{i,{},{}}] * intensity[i]
   end
 
+  -- print("gradPose before final", self.gradPose:sum())
   self.gradPose = self.gradPose:reshape(bsize,9)
   self.finalgradPose = torch.zeros(bsize, 10)
   self.finalgradPose[{{},{1,9}}] = self.gradPose
@@ -242,6 +251,7 @@ function ACR:updateGradInput(input, gradOutput)
   end
 
   self.gradInput = {self.gradTemplate, self.finalgradPose}
+  print(torch.sum(self.gradInput[1]), torch.sum(self.gradInput[2]))
   return self.gradInput
 end
 

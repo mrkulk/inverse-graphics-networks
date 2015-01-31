@@ -5,7 +5,7 @@ function Bias:__init(bsize, outputSize)
   self.output = torch.Tensor(bsize, outputSize)
   self.bsize = bsize
   self.bias = torch.rand(bsize, outputSize)
-  self.gradBias = torch.Tensor(bsize, outputSize)
+  self.gradBias = torch.zeros(bsize, outputSize)
 end
 
 function Bias:updateOutput(input)
@@ -19,8 +19,15 @@ function Bias:updateGradInput(input, gradOutput)
 end
 
 function Bias:accGradParameters(input, gradOutput, scale)
+  --print("Bias accumulating grad parameters")
+  --print(gradOutput)
   scale = scale or 1
   self.gradBias:add(scale, gradOutput)
+  -- print(self.gradBias)
+end
+
+function Bias:zeroGradParameters()
+  self.gradBias = torch.zeros(self.gradBias:size())
 end
 
 function Bias:updateParameters(learningRate)
