@@ -97,7 +97,7 @@ for ii=1,num_acrs do
       splitter:add(intensityWrapper)
     INTMWrapper:add(splitter)
     INTMWrapper:add(nn.INTM(bsize, 7,intm_out_dim))
-    -- INTMWrapper:add(nn.INTMReg())
+    --INTMWrapper:add(nn.INTMReg())
   acr_in:add(INTMWrapper)
   acr_wrapper:add(acr_in)
   acr_wrapper:add(nn.ACR(bsize, image_width))
@@ -160,7 +160,7 @@ end
 
 -- local learning_rate = 0.000001
 local meta_learning_alpha = 0.00001
-local gamma = 1
+local gamma = math.exp(3)
 local momentum = 0.95
 
 -- local temp = {}
@@ -184,16 +184,16 @@ if CHECK_GRADS then
 end
 
 
-function train()
-  for i = 1, 200 do
+function train(epc)
+  for i = 1, trainset:size() do
     batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
-    print("error "..i..": " .. criterion:forward(architecture:forward(batch), batch) )
+    print("epoch:" .. tostring(epc) .. " batch:"..i.."/" .. tostring(trainset:size()) .. " error: " .. criterion:forward(architecture:forward(batch), batch) )
     --print(architecture:forward(batch))
     -- print(architecture.output)
 
 
     if i % 1 == 0 then
-      print(encoder.output[1]:reshape(num_acrs, 7))
+      --print(encoder.output[1]:reshape(num_acrs, 7))
       local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
       -- saveACRs(i, architecture)
       -- image.save("test_images/step_"..i.."_recon.png", out)
@@ -231,37 +231,39 @@ function train()
     --------update parameters --------------------------
     encoder_hidden.weight = encoder_hidden.weight
             - (encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden)
-    print('encoder_hidden weight', torch.sum(encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden))
+    --print('encoder_hidden weight', torch.sum(encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden))
 
 
     encoder_hidden.bias = encoder_hidden.bias
             - (encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias)
-    print('encoder_hidden bias', torch.sum(encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias))
+    --print('encoder_hidden bias', torch.sum(encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias))
 
     encoder_output.weight = encoder_output.weight
             - (encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput)
-    print('encoder_output weight', torch.sum(encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput))
+    --print('encoder_output weight', torch.sum(encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput))
 
     encoder_output.bias = encoder_output.bias
             - (encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias)
-    print('encoder_output bias', torch.sum(encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias))
+    --print('encoder_output bias', torch.sum(encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias))
 
     for ac=1,num_acrs do
       local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
       ac_bias.bias = ac_bias.bias
             - (ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac])
-      print('template bias:', torch.sum(ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac]), torch.sum(ac_bias.gradBias), gradAverage.templates[ac])
+      --print('template bias:', torch.sum(ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac]), torch.sum(ac_bias.gradBias), gradAverage.templates[ac])
     end
 
-    print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
-    print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
+    --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
+    --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
 
     -- testOut = architecture:forward(trainset[{{1, 30}}])
     -- image.save("test_images/step_"..i.."_fixed.png", torch.reshape(testOut[1], 1, image_width, image_width))
   end
 end
 
-train()
+for epc = 1,100 do
+  train(epc)
+end
 
 parallel.close()
 

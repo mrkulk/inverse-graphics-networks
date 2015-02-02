@@ -161,7 +161,8 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
   end
 
   if tostring(torch.sum(gradPose)) == tostring(0/0) then
-    print('gradOutput:', torch.sum(gradOutput))
+    print("ERROR!")
+--    print('gradOutput:', torch.sum(gradOutput))
   end
 
   return gradTemplate, gradPose
