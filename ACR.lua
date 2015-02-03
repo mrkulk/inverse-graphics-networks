@@ -249,6 +249,7 @@ function ACR:updateGradInput(input, gradOutput)
   end
 
   self.gradInput = {self.gradTemplate, self.finalgradPose}
+  return self.gradInput
 end
 
 
