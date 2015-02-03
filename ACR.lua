@@ -76,7 +76,7 @@ function ACR:updateOutput(input)
 
         template_coords = torch.zeros(bsize, 3)
         for i=1, bsize do
-          template_coords[{i, {}}] = pose[{bsize,{},{}}]*output_coords
+          template_coords[{i, {}}] = pose[{i,{},{}}]*output_coords
         end
 
         self.output[{{}, output_x, output_y}] = torch.cmul(intensity, ACR_helper:getInterpolatedTemplateValue(
@@ -142,7 +142,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local GPU = 1
+  local GPU = 0
   local runMulticore = 0
 
   if GPU == 1 then
@@ -164,67 +164,7 @@ function ACR:updateGradInput(input, gradOutput)
     self.gradPose = res[{{bsize*tdim*tdim+1, bsize*tdim*tdim + bsize*3*3}}]:reshape(bsize,3,3)
 
   elseif runMulticore == 1 then
-    if true then
-      self:parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
-    else
-      --using threads-ffi package
-      local njob = 2*2 --divide image into 4x4 block
-      local output = torch.Tensor(self.output:size()):copy(self.output)
-      local gradTemplate = torch.Tensor(self.gradTemplate:size())
-      local gradPose = torch.Tensor(self.gradPose:size())
-
-      local nthread = 2
-
-      sdl.init(1)
-
-      local acr_threads = Threads(nthread,
-         function()
-            gsdl = require 'sdl2'
-            ACR_helper = require 'ACR_helper'
-         end
-      )
-
-      -- now add jobs
-      local jobdone = 0
-      for jid=1,njob do
-        acr_threads:addjob(
-          -- the job callback
-          function(jobdone)
-            local grid_side = math.sqrt(njob)
-            local id = tonumber(gsdl.threadID())
-
-            local ii = (jid-1)% grid_side
-            local jj = math.floor((jid-1)/grid_side)
-            local factor = math.floor(output:size()[2]/grid_side)
-
-            local start_x=ii*factor + 1;
-            local start_y=jj*factor + 1;
-            local endhere_x=ii*factor+factor;
-            local endhere_y=jj*factor + factor
-
-            --print(string.format('jid: %d ii:%d jj:%d ||| sx: %d, sy:%d, ex:%d, ey:%d\n',jid,ii,jj, start_x, start_y, endhere_x, endhere_y))
-
-            local gradTemplate_thread; local gradPose_thread
-            gradTemplate_thread, gradPose_thread = ACR_helper:gradHelper("multicore",start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template,
-                                                                          gradOutput, gradTemplate, gradPose)
-
-            return gradTemplate_thread, gradPose_thread
-          end,
-          -- takes output of the previous function as argument
-          function(gradTemplate_thread, gradPose_thread)
-            -- note that we can manipulate upvalues of the main thread
-            -- as this callback is ran in the main thread!
-            self.gradTemplate = self.gradTemplate + gradTemplate_thread
-            self.gradPose = self.gradPose + gradPose_thread
-            jobdone = jobdone + 1
-          end,
-          jid -- argument
-        )
-      end
-      acr_threads:synchronize()-- wait for all jobs to finish
-      acr_threads:terminate()
-    end
-
+    self:parent(grid_size, self.output, gradOutput, pose, bsize, template, self.gradTemplate, self.gradPose)
   else
     start_x = 1; start_y=1;  endhere_x = self.output:size()[2]; endhere_y = self.output:size()[3]
     self.gradTemplate, self.gradPose = ACR_helper:gradHelper("singlecore", start_x, start_y, endhere_x, endhere_y ,self.output, pose, bsize, template,

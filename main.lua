@@ -67,8 +67,8 @@ architecture:add(encoder)
 architecture:add(nn.Reshape(num_acrs,7))
 
 -- Creating intm and acr's
-decoder = nn.Parallel(2,2)
--- decoder = nn.ParallelParallel(2,2)
+-- decoder = nn.Parallel(2,2)
+decoder = nn.ParallelParallel(2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -177,7 +177,7 @@ local gradAverage = {
 
 function train(epc)
   total_recon_error = 0
-  for i = 1,1 do--1, trainset:size() do
+  for i = 1,1000 do--1, trainset:size() do
     batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
     recon_error = criterion:forward(architecture:forward(batch), batch)
     total_recon_error = total_recon_error + recon_error

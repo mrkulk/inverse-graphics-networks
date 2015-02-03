@@ -10,6 +10,7 @@ function moduleWrapper()
   require 'Bias'
   require 'PrintModule'
   require 'INTMReg'
+  require 'gradACRWrapper'
 
   torch.setnumthreads(1)
 
