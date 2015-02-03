@@ -15,6 +15,8 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
     gradTemplate = torch.zeros(_gradTemplate:size()); gradPose = torch.zeros(_gradPose:size())
   end
 
+  print(gradOutput)
+
   for output_x = start_x, endhere_x do
     for output_y = start_y, endhere_y do
       --sys.tic()
@@ -26,11 +28,11 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
         template_coords[{i, {}}] = pose[{bsize,{},{}}]*output_coords
       end
 
-      template_x = template_coords[{{},1}]--template_coords[1]
+      template_x = template_coords[{{},1}] --template_coords[1]
       template_y = template_coords[{{},2}] --template_coords[2]
 
-      template_x = template_x - 1/2
-      template_y = template_y - 1/2
+      template_x = template_x - 1/2 
+      template_y = template_y - 1/2 
 
       local x_high_coeff = torch.Tensor(bsize)
       local y_high_coeff = torch.Tensor(bsize)
@@ -46,12 +48,12 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       x_low_coeff  =  -x_high_coeff + 1
       y_low_coeff  =  -y_high_coeff + 1
 
-      x_low  = torch.floor(template_x)
-      x_high = x_low + 1
-      y_low  = torch.floor(template_y)
-      y_high = y_low + 1
+      x_low  = torch.floor(template_x) 
+      x_high = x_low + 1 
+      y_low  = torch.floor(template_y) 
+      y_high = y_low + 1 
 
-
+      --[[   
       for ii=1,bsize do
         -----------------------------------------------------------------------------
         --------------------------- Template gradient -------------------------------
@@ -66,11 +68,63 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
           for j, y in ipairs({y_low[ii], y_high[ii]}) do
               if x >= 1 and x <= template:size()[2]
                 and y >= 1 and y <= template:size()[3] then
-                gradTemplate[ii][x][y] = gradTemplate[ii][x][y] + dOutdPose[i][j]
+                gradTemplate[ii][x][y] = gradTemplate[ii][x][y] + dOutdPose[i][j] * gradOutput[ii][output_x][output_y] 
               end
           end
         end
       end
+      --]]
+      
+
+      
+      -- xt = a*x + b*y + c;
+      -- yt = d*x + e*y + f;
+      -- Ixy = (1./((x2-x1)*(y2-y1))) * ( (t11*(x2-xt)*(y2-yt)) + (t21*(xt-x1)*(y2-yt)) + (t12*(x2-xt)*(yt-y1)) + (t22*(xt-x1)*(yt-y1)) )
+      xxx = nil; yyy=nil;
+      for ii=1,bsize do
+        local x_low_ii = x_low[ii]; local y_low_ii = y_low[ii];
+        local x_high_ii = x_high[ii]; local y_high_ii = y_high[ii];
+        local ratio_xy = (x_low_ii-x_high_ii)*(y_low_ii-y_high_ii)
+
+        --print('before:', gradTemplate)
+        --------------------------- Template gradient -------------------------------
+        if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
+          gradTemplate[{ii, x_low_ii, y_low_ii}] = gradTemplate[{ii, x_low_ii, y_low_ii}] + ( (((template_x-x_high_ii)*(template_y-y_high_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] ) 
+          --print(x_low_ii, y_low_ii, template_x[1], template_y[1], gradOutput[ii][output_x][output_y])
+          xxx = x_low_ii; yyy= y_low_ii
+        end
+
+        if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
+          gradTemplate[{ii, x_low_ii,y_high_ii}] = gradTemplate[{ii, x_low_ii,y_high_ii}] + ( -(((template_x-x_high_ii)*(template_y-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          --print(x_low_ii, y_high_ii, template_x[1], template_y[1], gradOutput[ii][output_x][output_y])
+          xxx=x_low_ii; yyy = y_high_ii
+        end
+
+        if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
+          gradTemplate[{ii,x_high_ii,y_low_ii}] = gradTemplate[{ii,x_high_ii,y_low_ii}] + ( -(((template_x-x_low_ii)*(template_y-y_high_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          --print(x_high_ii, y_low_ii, template_x[1], template_y[1], gradOutput[ii][output_x][output_y])
+          xxx=x_high_ii; yyy = y_low_ii
+        end
+      
+        if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
+          gradTemplate[{ii,x_high_ii,y_high_ii}] = gradTemplate[{ii,x_high_ii,y_high_ii}] + ( (((template_x-x_low_ii)*(template_y-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          --print(x_high_ii, y_high_ii, template_x[1], template_y[1], gradOutput[ii][output_x][output_y])
+          xxx = x_high_ii; yyy = y_high_ii
+        end
+
+        if xxx == 1 and yyy == 2  then
+          print(output_x, output_y)
+          print('template_coords' , template_coords)
+          print('template_x', template_x) 
+          print('template_y', template_y)
+          print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
+          print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
+          print('---\n')          
+        end
+      end
+      --]]
+
+
       --print('template:', sys.toc())
 
       --sys.tic()
@@ -181,12 +235,6 @@ function ACR_helper:getTemplateValue(bsize, template, template_x, template_y)
     if output_x[i] < 1 or output_x[i] > template:size()[2] or output_y[i] < 1 or output_y[i] > template:size()[3] then
       res[i] = 0
     else
-      --[[if output_x[i] > template:size()[2] or output_x[i] < 1 then
-        print('WTF-x')
-      end
-      if output_y[i] > template:size()[3] or output_y[i] < 1 then
-        print('WTF-y')
-      end--]]
       res[i] = template[i][output_x[i]][output_y[i]]
     end
   end
@@ -216,15 +264,35 @@ function ACR_helper:getInterpolatedTemplateValue(bsize, template, template_x, te
   y_low  = torch.floor(template_y)
   y_high = y_low + 1
 
-  --return ACR_helper:getTemplateValue(bsize, template, x_low,  y_low)  * x_low_coeff  * y_low_coeff  +
-  --       ACR_helper:getTemplateValue(bsize, template, x_high, y_low)  * x_high_coeff * y_low_coeff  +
-  --       ACR_helper:getTemplateValue(bsize, template, x_low,  y_high) * x_low_coeff  * y_high_coeff +
-  --       ACR_helper:getTemplateValue(bsize, template, x_high, y_high) * x_high_coeff * y_high_coeff
 
   return torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low,  y_low) , torch.cmul(x_low_coeff  , y_low_coeff))  +
          torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_low) , torch.cmul(x_high_coeff , y_low_coeff )) +
          torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low,  y_high), torch.cmul(x_low_coeff  , y_high_coeff ))+
          torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_high), torch.cmul(x_high_coeff , y_high_coeff ))
+
+  --[[
+  local x2_x1 = x_high - x_low
+  local y2_y1 = y_high - y_low 
+  local x2_x = x_high - template_x
+  local y2_y = y_high - template_y
+  local x_x1 = template_x - x_low
+  local y_y1 = template_y - y_low
+
+
+  local t11 = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)
+  local t12 = ACR_helper:getTemplateValue(bsize, template, x_low, y_high)
+  local t21 = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
+  local t22 = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
+
+  local ratio = torch.pow(torch.cmul(x2_x1, y2_y1),-1)
+
+  local term_t11 = torch.cmul(t11, torch.cmul(x2_x, y2_y))
+  local term_t21 = torch.cmul(t21, torch.cmul(x_x1, y2_y))
+  local term_t12 = torch.cmul(t12, torch.cmul(x2_x, y_y1))
+  local term_t22 = torch.cmul(t22, torch.cmul(x_x1, y_y1))
+
+  return torch.cmul(ratio, (term_t11 + term_t12 + term_t21 + term_t22))
+  --]]
 end
 
 

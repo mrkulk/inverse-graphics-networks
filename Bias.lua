@@ -23,7 +23,7 @@ function Bias:accGradParameters(input, gradOutput, scale)
   --print(gradOutput)
   scale = scale or 1
   self.gradBias:add(scale, gradOutput)
-  -- print(self.gradBias)
+  --print(self.gradBias)
 end
 
 function Bias:zeroGradParameters()
@@ -39,6 +39,7 @@ function Bias:accUpdateGradParameters(input, gradOutput, learningRate)
   self.gradBias = self.bias
   self:accGradParameters(input, gradOutput, -learningRate)
   self.gradBias = gradBias
+
 end
 
 

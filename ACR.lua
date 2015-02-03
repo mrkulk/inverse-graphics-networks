@@ -52,7 +52,7 @@ function ACR:makeThreads()
 end
 
 
-function ACR:updateOutput(input)
+function ACR:updateOutput(input)  
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
   local iGeoPose = input[2]
@@ -127,7 +127,6 @@ end
 
 function ACR:updateGradInput(input, gradOutput)
   --print('ACR grad')
-
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
   local iGeoPose = input[2]
@@ -143,7 +142,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local GPU = 1
+  local GPU = 0
   local runMulticore = 0
 
   if GPU == 1 then

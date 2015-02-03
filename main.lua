@@ -97,7 +97,7 @@ for ii=1,num_acrs do
       splitter:add(intensityWrapper)
     INTMWrapper:add(splitter)
     INTMWrapper:add(nn.INTM(bsize, 7,intm_out_dim))
-    --INTMWrapper:add(nn.INTMReg())
+    INTMWrapper:add(nn.INTMReg())
   acr_in:add(INTMWrapper)
   acr_wrapper:add(acr_in)
   acr_wrapper:add(nn.ACR(bsize, image_width))
@@ -175,19 +175,14 @@ local gradAverage = {
   encoderOutputBias = 1
 }
 
-i = 1
-batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
--- print(batch)
-if CHECK_GRADS then
-  checkINTMGrads(criterion, architecture, batch, num_acrs)
-  checkTemplateGrads(criterion, architecture, batch, num_acrs)
-end
-
-
 function train(epc)
-  for i = 1, trainset:size() do
+  total_recon_error = 0
+  for i = 1,1 do--1, trainset:size() do
     batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
-    print("epoch:" .. tostring(epc) .. " batch:"..i.."/" .. tostring(trainset:size()) .. " error: " .. criterion:forward(architecture:forward(batch), batch) )
+    recon_error = criterion:forward(architecture:forward(batch), batch)
+    total_recon_error = total_recon_error + recon_error
+
+    print("epoch:" .. tostring(epc) .. " batch:"..i.."/" .. tostring(trainset:size()) .. " error: " .. recon_error )
     --print(architecture:forward(batch))
     -- print(architecture.output)
 
@@ -203,66 +198,82 @@ function train(epc)
     architecture:zeroGradParameters()
     architecture:backward(batch, criterion:backward(architecture.output, batch))
 
-    if CHECK_GRADS then
-      checkINTMGrads(criterion, architecture, batch, num_acrs)
-      checkTemplateGrads(criterion, architecture, batch, num_acrs)
+    RMSPROP = true
+
+    if RMSPROP == true then
+      --------calculating gradient averages---------------
+      local encoder_hidden = architecture.modules[1].modules[2]
+      gradAverage.encoderHidden = 1/gamma * torch.pow(encoder_hidden.gradWeight:norm(),2)
+                                  + (1-(1/gamma))*gradAverage.encoderHidden
+      gradAverage.encoderHiddenBias = 1/gamma * torch.pow(encoder_hidden.gradBias:norm(),2)
+                                  + (1-(1/gamma))*gradAverage.encoderHiddenBias
+
+      local encoder_output = architecture.modules[1].modules[4]
+      gradAverage.encoderOutput = 1/gamma * torch.pow(encoder_output.gradWeight:norm(),2)
+                                  + (1-(1/gamma))*gradAverage.encoderOutput
+      gradAverage.encoderOutputBias = 1/gamma * torch.pow(encoder_output.gradBias:norm(),2)
+                                  + (1-(1/gamma))*gradAverage.encoderOutputBias
+
+      for ac = 1,num_acrs do
+        local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
+        gradAverage.templates[ac] = 1/gamma * torch.pow(ac_bias.gradBias:norm(),2)
+                                  + (1-(1/gamma))*gradAverage.templates[ac]
+      end
+
+      --------update parameters --------------------------
+      encoder_hidden.weight = encoder_hidden.weight
+              - (encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden)
+      --print('encoder_hidden weight', torch.sum(encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden))
+
+
+      encoder_hidden.bias = encoder_hidden.bias
+              - (encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias)
+      --print('encoder_hidden bias', torch.sum(encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias))
+
+      encoder_output.weight = encoder_output.weight
+              - (encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput)
+      --print('encoder_output weight', torch.sum(encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput))
+
+      encoder_output.bias = encoder_output.bias
+              - (encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias)
+      --print('encoder_output bias', torch.sum(encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias))
+
+      for ac=1,num_acrs do
+        local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
+        ac_bias.bias = ac_bias.bias
+              - (ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac])
+        --print('template bias:', torch.sum(ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac]), torch.sum(ac_bias.gradBias), gradAverage.templates[ac])
+      end
+
+      --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
+      --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
+
+      -- testOut = architecture:forward(trainset[{{1, 30}}])
+      -- image.save("test_images/step_"..i.."_fixed.png", torch.reshape(testOut[1], 1, image_width, image_width))
+    else
+      print('Updating .. ')
+      architecture:updateParameters(0.0001)
+      for ac = 1,num_acrs do
+        local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
+        print(torch.sum(ac_bias.gradBias))
+      end
     end
-    --architecture:updateParameters(learning_rate)
-
-    --------calculating gradient averages---------------
-    local encoder_hidden = architecture.modules[1].modules[2]
-    gradAverage.encoderHidden = 1/gamma * torch.pow(encoder_hidden.gradWeight:norm(),2)
-                                + (1-(1/gamma))*gradAverage.encoderHidden
-    gradAverage.encoderHiddenBias = 1/gamma * torch.pow(encoder_hidden.gradBias:norm(),2)
-                                + (1-(1/gamma))*gradAverage.encoderHiddenBias
-
-    local encoder_output = architecture.modules[1].modules[4]
-    gradAverage.encoderOutput = 1/gamma * torch.pow(encoder_output.gradWeight:norm(),2)
-                                + (1-(1/gamma))*gradAverage.encoderOutput
-    gradAverage.encoderOutputBias = 1/gamma * torch.pow(encoder_output.gradBias:norm(),2)
-                                + (1-(1/gamma))*gradAverage.encoderOutputBias
-
-    for ac = 1,num_acrs do
-      local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-      gradAverage.templates[ac] = 1/gamma * torch.pow(ac_bias.gradBias:norm(),2)
-                                + (1-(1/gamma))*gradAverage.templates[ac]
-    end
-
-    --------update parameters --------------------------
-    encoder_hidden.weight = encoder_hidden.weight
-            - (encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden)
-    --print('encoder_hidden weight', torch.sum(encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden))
-
-
-    encoder_hidden.bias = encoder_hidden.bias
-            - (encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias)
-    --print('encoder_hidden bias', torch.sum(encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias))
-
-    encoder_output.weight = encoder_output.weight
-            - (encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput)
-    --print('encoder_output weight', torch.sum(encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput))
-
-    encoder_output.bias = encoder_output.bias
-            - (encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias)
-    --print('encoder_output bias', torch.sum(encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias))
-
-    for ac=1,num_acrs do
-      local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-      ac_bias.bias = ac_bias.bias
-            - (ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac])
-      --print('template bias:', torch.sum(ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac]), torch.sum(ac_bias.gradBias), gradAverage.templates[ac])
-    end
-
-    --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
-    --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
-
-    -- testOut = architecture:forward(trainset[{{1, 30}}])
-    -- image.save("test_images/step_"..i.."_fixed.png", torch.reshape(testOut[1], 1, image_width, image_width))
   end
 end
 
-for epc = 1,100 do
-  train(epc)
+
+if CHECK_GRADS then
+  i = 1
+  batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
+  -- print(batch)
+  if CHECK_GRADS then
+    checkINTMGrads(criterion, architecture, batch, num_acrs)
+    checkTemplateGrads(criterion, architecture, batch, num_acrs)
+  end
+else
+  for epc = 1,100 do
+    train(epc)
+  end
 end
 
 parallel.close()

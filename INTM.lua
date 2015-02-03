@@ -22,6 +22,7 @@ input = [t1, t2, s1,s2, z, theta, intensity]
 --]]
 
 function INTM:updateOutput(input)
+  
   --self.output = input[{{1,self.output_dim}}]*10
   -- print(input[{{},7}]:sum())
   t1=input[{{},1}]
@@ -41,6 +42,8 @@ function INTM:updateOutput(input)
   self.output[{{},8}]=0;
   self.output[{{},9}]=1;
   self.output[{{},10}]=input[{{},7}]
+
+
   return self.output
 end
 
