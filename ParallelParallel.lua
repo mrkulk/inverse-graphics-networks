@@ -9,6 +9,7 @@ function moduleWrapper()
   require 'INTM'
   require 'Bias'
   require 'PrintModule'
+  require 'INTMReg'
 
   torch.setnumthreads(1)
 

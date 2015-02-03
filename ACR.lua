@@ -126,8 +126,7 @@ end
 
 
 function ACR:updateGradInput(input, gradOutput)
-  print('ACR grad')
-
+  --print('ACR grad')
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
   local iGeoPose = input[2]
@@ -235,7 +234,6 @@ function ACR:updateGradInput(input, gradOutput)
   -- print("intensity, later: ", intensity)
   -- print("I AM A BANANA")
   --scaling gradient with intensity
-  -- print("gradPose before intensity", self.gradPose:sum())
   for i=1,bsize do
     self.gradTemplate[{i,{},{}}] = self.gradTemplate[{i,{},{}}] * intensity[i]
     self.gradPose[{i,{},{}}] = self.gradPose[{i,{},{}}] * intensity[i]
@@ -251,8 +249,6 @@ function ACR:updateGradInput(input, gradOutput)
   end
 
   self.gradInput = {self.gradTemplate, self.finalgradPose}
-  -- print(torch.sum(self.gradInput[1]), torch.sum(self.gradInput[2]))
-  return self.gradInput
 end
 
 
