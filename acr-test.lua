@@ -38,14 +38,14 @@ net:add(acr)
 
 criterion = nn.MSECriterion()
 
-data = torch.Tensor({-2.2,-1.8,0.8,0.8,-.1,1*math.pi/4,  1})
+data = torch.Tensor({-2,-2,1,1,0,0*math.pi/4,  1})
 data = data:reshape(1,7)
 targets = torch.zeros(imwidth,imwidth):reshape(1,imwidth,imwidth)
 targets = targets * 0.5
 
 outputs = net:forward(data)
 -- print(outputs)
-targets[{{}, {5,10}, {5,10}}] = outputs[{{}, {1,6}, {1,6}}]
+targets[{{}, {2,7}, {2,7}}] = outputs[{{}, {1,6}, {1,6}}]
 f = criterion:forward(outputs, targets)
 
 
@@ -56,34 +56,63 @@ back = net:backward(data, df_do)
 print('pred:',outputs)
 print('target:', targets)
 
---test gradients for template
-EPSILON = 1e-7
-grad_diff = 0
-ac_bias = acr_in.modules[1]
+--------------------------------------------------------------------------
+-------------------test gradients for template----------------------------
+--------------------------------------------------------------------------
+if false then
+	EPSILON = 1e-7
+	grad_diff = 0
+	ac_bias = acr_in.modules[1]
 
-ac_bias_truegrad = torch.zeros(ac_bias.bias:size())
+	ac_bias_truegrad = torch.zeros(ac_bias.bias:size())
 
-for ii = 1, ac_bias.bias:size()[2] do
+	for ii = 1, ac_bias.bias:size()[2] do
 
-	--local t = ac_bias.bias[{1, ii }]
-	ac_bias.bias[{1,ii}] = ac_bias.bias[{1,ii}] + EPSILON
-	J_pos = criterion:forward(net:forward(data), targets)
+		--local t = ac_bias.bias[{1, ii }]
+		ac_bias.bias[{1,ii}] = ac_bias.bias[{1,ii}] + EPSILON
+		J_pos = criterion:forward(net:forward(data), targets)
 
-	ac_bias.bias[{1,ii}] = ac_bias.bias[{1,ii}] - 2*EPSILON
-	J_neg = criterion:forward(net:forward(data), targets)
+		ac_bias.bias[{1,ii}] = ac_bias.bias[{1,ii}] - 2*EPSILON
+		J_neg = criterion:forward(net:forward(data), targets)
 
-	ac_bias_truegrad[{1,ii}] = (J_pos - J_neg)/(2*EPSILON)
+		ac_bias_truegrad[{1,ii}] = (J_pos - J_neg)/(2*EPSILON)
 
-	--ac_bias.bias[{1,ii}] = t
-	ac_bias.bias[{1,ii}] = ac_bias.bias[{1,ii}] + EPSILON
+		--ac_bias.bias[{1,ii}] = t
+		ac_bias.bias[{1,ii}] = ac_bias.bias[{1,ii}] + EPSILON
+	end
+	local diff = torch.sum(torch.pow(ac_bias_truegrad - ac_bias.gradBias,2))
+	print('ACR error:', diff)
+	print('True', ac_bias_truegrad:reshape(twidth, twidth))
+	print('Calc', ac_bias.gradBias:reshape(twidth, twidth))
+	grad_diff = grad_diff + diff
+
+
+	print('[GRADIENT CHECKER: TEMPLATE] Error: ', grad_diff)
+
+else
+--------------------------------------------------------------------------
+-------------------test gradients for pose--------------------------------
+--------------------------------------------------------------------------
+	EPSILON = 1e-7
+	grad_diff = 0
+	intm = acr_in.modules[2]
+	intm_calcgrads = intm.gradInput:clone()
+	intm_truegrad = torch.zeros(intm.gradInput:size())
+
+	for ii = 1, intm_truegrad:size()[1] do
+
+		data[{1,ii}] = data[{1,ii}] + EPSILON
+		J_pos = criterion:forward(net:forward(data), targets)
+
+		data[{1,ii}] = data[{1,ii}] - 2*EPSILON
+		J_neg = criterion:forward(net:forward(data), targets)
+
+		intm_truegrad[{1,ii}] = (J_pos - J_neg)/(2*EPSILON)
+
+		data[{1,ii}] = data[{1,ii}] + EPSILON
+	end
+	local diff = torch.sum(torch.pow(intm_truegrad - intm_calcgrads,2))
+	print('intm gradient error:', diff)
+	print('True', intm_truegrad)
+	print('Calc', intm_calcgrads)
 end
-local diff = torch.sum(torch.pow(ac_bias_truegrad - ac_bias.gradBias,2))
-print('ACR error:', diff)
-print('True', ac_bias_truegrad:reshape(twidth, twidth))
-print('Calc', ac_bias.gradBias:reshape(twidth, twidth))
-grad_diff = grad_diff + diff
-
-
-print('[GRADIENT CHECKER: TEMPLATE] Error: ', grad_diff)
-
-

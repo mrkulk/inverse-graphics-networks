@@ -102,15 +102,15 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
           xxx = x_low_ii; yyy= y_low_ii
 
-          if xxx == 1 and yyy == 1  then
-            print("updateIndex: ", 1)
-            print("output coordinates: ", output_x, output_y)
-            print('template_coords' , template_coords)
-            print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-            print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-            print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-            print('--------------\n\n')
-          end
+          -- if xxx == 1 and yyy == 1  then
+          --   print("updateIndex: ", 1)
+          --   print("output coordinates: ", output_x, output_y)
+          --   print('template_coords' , template_coords)
+          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
+          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
+          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
+          --   print('--------------\n\n')
+          -- end
         end
 
         if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
@@ -118,15 +118,15 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
           --print(x_low_ii, y_high_ii, template_x_after_offset[1], template_y_after_offset[1], gradOutput[ii][output_x][output_y])
           xxx=x_low_ii; yyy = y_high_ii
 
-          if xxx == 1 and yyy == 1  then
-            print("updateIndex: ", 2)
-            print("output coordinates: ", output_x, output_y)
-            print('template_coords' , template_coords)
-            print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-            print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-            print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-            print('--------------\n\n')
-          end
+          -- if xxx == 1 and yyy == 1  then
+          --   print("updateIndex: ", 2)
+          --   print("output coordinates: ", output_x, output_y)
+          --   print('template_coords' , template_coords)
+          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
+          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
+          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
+          --   print('--------------\n\n')
+          -- end
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
@@ -134,15 +134,15 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
           --print(x_high_ii, y_low_ii, template_x_after_offset[1], template_y_after_offset[1], gradOutput[ii][output_x][output_y])
           xxx=x_high_ii; yyy = y_low_ii
 
-          if xxx == 1 and yyy == 1  then
-            print("updateIndex: ", 3)
-            print("output coordinates: ", output_x, output_y)
-            print('template_coords' , template_coords)
-            print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-            print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-            print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-            print('--------------\n\n')
-          end
+          -- if xxx == 1 and yyy == 1  then
+          --   print("updateIndex: ", 3)
+          --   print("output coordinates: ", output_x, output_y)
+          --   print('template_coords' , template_coords)
+          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
+          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
+          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
+          --   print('--------------\n\n')
+          -- end
 
         end
 
@@ -151,15 +151,15 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
           --print(x_high_ii, y_high_ii, template_x_after_offset[1], template_y_after_offset[1], gradOutput[ii][output_x][output_y])
           xxx = x_high_ii; yyy = y_high_ii
 
-          if xxx == 1 and yyy == 1  then
-            print("updateIndex: ", 4)
-            print("output coordinates: ", output_x, output_y)
-            print('template_coords' , template_coords)
-            print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-            print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-            print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-            print('--------------\n\n')
-          end
+          -- if xxx == 1 and yyy == 1  then
+          --   print("updateIndex: ", 4)
+          --   print("output coordinates: ", output_x, output_y)
+          --   print('template_coords' , template_coords)
+          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
+          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
+          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
+          --   print('--------------\n\n')
+          -- end
         end
 
 

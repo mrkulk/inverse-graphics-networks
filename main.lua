@@ -17,7 +17,7 @@ require 'checkgradients'
 
 torch.manualSeed(1)
 
-CHECK_GRADS = false
+CHECK_GRADS = true
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
@@ -47,13 +47,13 @@ end
 trainset = getDigitSet(1)
 
 --number of acr's
-num_acrs = 9
+num_acrs = 1--9
 image_width = 32
-h1size = 500
+h1size = 5--500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 30
-template_width = 11
+bsize = 1--30
+template_width = 3--11
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
@@ -67,8 +67,8 @@ architecture:add(encoder)
 architecture:add(nn.Reshape(num_acrs,7))
 
 -- Creating intm and acr's
--- decoder = nn.Parallel(2,2)
-decoder = nn.ParallelParallel(2,2)
+decoder = nn.Parallel(2,2)
+--decoder = nn.ParallelParallel(2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -265,8 +265,8 @@ if CHECK_GRADS then
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   -- print(batch)
   if CHECK_GRADS then
-    checkINTMGrads(criterion, architecture, batch, num_acrs)
-    checkTemplateGrads(criterion, architecture, batch, num_acrs)
+    checkEncoderGrads(criterion, architecture, batch)
+    --checkTemplateGrads(criterion, architecture, batch, num_acrs)
   end
 else
   for epc = 1,100 do
