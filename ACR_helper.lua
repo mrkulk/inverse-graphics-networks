@@ -167,29 +167,40 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       --]]
 
 
-      --print('template:', sys.toc())
+      ------------------- Pose Gradient ---------------------------
+      -- syms a b c d e f x y xt yt x1 x2 y1 y2 t11 t12 t21 t22
+      -- >> syms pose_1_1 pose_1_2 pose_1_3 pose_2_1 pose_2_2 pose_2_3
+      -- >> xt = pose_1_1*x + pose_1_2*y + pose_1_3;
+      -- >> yt = pose_2_1*x + pose_2_2*y + pose_2_3;
+      --Ixy = (1./((x2-x1)*(y2-y1))) * ( (t11*(x2-xt)*(y2-yt)) + (t21*(xt-x1)*(y2-yt)) + (t12*(x2-xt)*(yt-y1)) + (t22*(xt-x1)*(yt-y1)) )
+      
+      template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
+      template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
+      template_val_xlow_ylow = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)
+      template_val_xlow_yhigh = ACR_helper:getTemplateValue(bsize, template, x_low, y_high)
 
-      --sys.tic()
+      pose_1_1 = pose[{{},1,1}]
+      pose_1_2 = pose[{{},1,2}]
+      pose_1_3 = pose[{{},1,3}]
+      pose_2_1 = pose[{{},2,1}]
+      pose_2_2 = pose[{{},2,2}]
+      pose_2_3 = pose[{{},2,3}]      
+
+
+      cache1 = (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y)
+      cache2 = (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
+      --cache3 = (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
+      --cache4 = (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
+
+      cache5 = torch.cmul(template_val_xlow_ylow, cache2)
+      cache6 = torch.cmul(template_val_xlow_yhigh, cache1)
+      cache7 = torch.cmul(template_val_xhigh_ylow, cache2)
+      cache8 = torch.cmul(template_val_xhigh_yhigh, cache1)
+
+      --print('df', ((cache5 - cache6 - cache7 + cache8) * output_x)[1], gradOutput[{{},output_x,output_y}][1])
+      gradPose[{{},1,1}] = gradPose[{{},1,1}] + torch.cmul( (cache5 - cache6 - cache7 + cache8) * output_x, gradOutput[{{},output_x,output_y}] )
 
       --[[
-        matlab:
-        -- geoPose = ((a,b,c),
-                      (d,e,f),
-                      (g,h,i))
-      --Ixy = [x_h - (a*x + b*y + c), (a*x + b*y + c) - x_l] * [T_ll, T_lh; T_hl, T_hh] * [y_h - (d*x + e*y + f); (d*x + e*y + f) - y_l]
-      -- gradient(Ixy, [a b c d e f]) <- gets gradient of pose
-      --[[a -> (T_hh*x - T_lh*x)*(f - y_l + d*x + e*y) - (T_hl*x - T_ll*x)*(f - y_h + d*x + e*y)
-          b -> (T_hh*y - T_lh*y)*(f - y_l + d*x + e*y) - (T_hl*y - T_ll*y)*(f - y_h + d*x + e*y)
-          c -> (T_hh - T_lh)*(f - y_l + d*x + e*y) - (T_hl - T_ll)*(f - y_h + d*x + e*y)
-          d -> x*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - x*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
-          e -> y*(T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y)) - y*(T_hl*(c - x_l + a*x + b*y) - T_ll*(c - x_h + a*x + b*y))
-          f -> T_hh*(c - x_l + a*x + b*y) - T_lh*(c - x_h + a*x + b*y) - T_hl*(c - x_l + a*x + b*y) + T_ll*(c - x_h + a*x + b*y)
-      --]]
-
-      --[[
-         gradient(Ixy, [T_ll T_lh T_hl T_hh]) <- gradient of template at locations ll, lh, hl, hh
-      --]]
-
       template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
       template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
       template_val_xlow_ylow = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)
@@ -201,12 +212,6 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       pose_2_1 = pose[{{},2,1}]
       pose_2_2 = pose[{{},2,2}]
       pose_2_3 = pose[{{},2,3}]
-
-
-      cache1 = (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y)
-      cache2 = (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
-      cache3 = (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-      cache4 = (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
 
       cache5 = torch.cmul(template_val_xhigh_yhigh, cache3)
       cache6 = torch.cmul(template_val_xlow_yhigh, cache4)
@@ -241,18 +246,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
 
       gradPose[{{},2,3}] = gradPose[{{},2,3}] +
               torch.cmul(gradOutput[{{},output_x,output_y}], cache5) - cache6 - cache7 + cache8
-
-      --print(output_x, output_y,gradPose[{{},2,3}][1] )
-      --if output_x == 3 and output_y == 4 then
-      --  print('CPU:',  template_val_xlow_ylow[1], template_val_xlow_yhigh[1], template_val_xhigh_ylow[1], template_val_xhigh_yhigh[1])
-        --for i = 1, 3 do
-        --  for j = 1, 3 do
-        --    print(pose[1][i][j])
-        --  end
-        --end
-      --end
-
-      --print('posegrad:' , sys.toc())
+      --]]
     end
   end
 
