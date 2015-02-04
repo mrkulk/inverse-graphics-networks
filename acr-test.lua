@@ -53,13 +53,14 @@ f = criterion:forward(outputs, targets)
 df_do = criterion:backward(outputs, targets)
 back = net:backward(data, df_do)
 
-print('pred:',outputs)
-print('target:', targets)
-
+-- 
 --------------------------------------------------------------------------
 -------------------test gradients for template----------------------------
 --------------------------------------------------------------------------
 if false then
+	-- print('pred:',outputs)
+	-- print('target:', targets)
+
 	EPSILON = 1e-7
 	grad_diff = 0
 	ac_bias = acr_in.modules[1]
@@ -93,14 +94,16 @@ else
 --------------------------------------------------------------------------
 -------------------test gradients for pose--------------------------------
 --------------------------------------------------------------------------
+	print('pred:',outputs)
+	print('target:', targets)
+
 	EPSILON = 1e-4
 	grad_diff = 0
 	intm = acr_in.modules[2]
 	intm_calcgrads = intm.gradInput:clone()
 	intm_truegrad = torch.zeros(intm.gradInput:size())
 
-	for ii = 1, intm_truegrad:size()[1] do
-
+	for ii = 1, intm_truegrad:size()[2] do
 		data[{1,ii}] = data[{1,ii}] + EPSILON
 		J_pos = criterion:forward(net:forward(data), targets)
 
