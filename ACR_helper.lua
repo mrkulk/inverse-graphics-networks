@@ -217,7 +217,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       gradPose[{{},2,3}] = gradPose[{{},2,3}] + torch.cmul( cache13, gradOutput[{{},output_x,output_y}])
 
       --print(x_low[1], x_high[1], y_low[1], y_high[1], template_val_xlow_ylow[1], template_val_xlow_yhigh[1], template_val_xhigh_ylow[1], template_val_xhigh_yhigh[1])
-      print(output_x, output_y, gradPose[{{},1,1}][1],gradPose[{{},1,1}][1] )
+      print(output_x, output_y, gradPose[{{},1,1}][1],gradPose[{{},1,2}][1] )
       --[[
       template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
       template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)

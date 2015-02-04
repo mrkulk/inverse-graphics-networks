@@ -97,10 +97,10 @@ function INTM:updateGradInput(input, gradOutput)
 
   grad_s1 = torch.zeros(bsize, 3,3)
   grad_s1[{{},1,1}]=torch.cos(theta); grad_s1[{{},1,3}]=torch.cmul(t1,torch.cos(theta))
-  grad_s1[{{},2,1}]=torch.sin(theta); grad_s1[{{},1,2}]=torch.cmul(t1,torch.sin(theta))
+  grad_s1[{{},2,1}]=torch.sin(theta); grad_s1[{{},2,3}]=torch.cmul(t1,torch.sin(theta))
 
   grad_s2 = torch.zeros(bsize, 3,3)
-  grad_s2[{{},1,2}]= torch.cmul(z,torch.cos(theta))-torch.sin(theta); grad_s2[{{},1,2}]=torch.cmul(-t2,(torch.sin(theta)- torch.cmul(z,torch.cos(theta))))
+  grad_s2[{{},1,2}]= torch.cmul(z,torch.cos(theta))-torch.sin(theta); grad_s2[{{},1,3}]=torch.cmul(-t2,(torch.sin(theta)- torch.cmul(z,torch.cos(theta))))
   grad_s2[{{},2,2}]=torch.cos(theta)+ torch.cmul(z,torch.sin(theta)); grad_s2[{{},2,3}]= torch.cmul(t2,(torch.cos(theta)+torch.cmul(z,torch.sin(theta))))
 
   grad_t1 = torch.zeros(bsize, 3,3)
@@ -128,6 +128,7 @@ function INTM:updateGradInput(input, gradOutput)
     self.gradInput[i][4] = torch.sum(torch.cmul(gradOutput_reshaped[{i,{},{}}], grad_s2[{i,{},{}}]))
     self.gradInput[i][5] = torch.sum(torch.cmul(gradOutput_reshaped[{i,{},{}}], grad_z[{i,{},{}}]))
     self.gradInput[i][6] = torch.sum(torch.cmul(gradOutput_reshaped[{i,{},{}}], grad_theta[{i,{},{}}]))
+
     self.gradInput[i][7] = gradOutput[{i,10}] -- intensity is unchanged in this module
   end
 
