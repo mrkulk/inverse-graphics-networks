@@ -182,6 +182,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.finalgradPose[{{},{1,9}}] = self.gradPose
 
   for i=1,bsize do
+    -- dividing by intensity as it is scaled already in self.output
     self.finalgradPose[{i,10}] = torch.sum(torch.cmul(self.output[{{i,{},{}}}] / intensity[i], gradOutput[{{i,{},{}}}])) --gradOutput[{i,{},{}}]:sum()
   end
 

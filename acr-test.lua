@@ -38,7 +38,7 @@ net:add(acr)
 
 criterion = nn.MSECriterion()
 
-data = torch.Tensor({-1.5,-1.5,1,1,0,0*math.pi/4,  1})
+data = torch.Tensor({-1.51,-1.51,.4,1.4,0.2,1*math.pi/4,  0.3})
 data = data:reshape(1,7)
 targets = torch.zeros(imwidth,imwidth):reshape(1,imwidth,imwidth)
 targets = targets * 0.5

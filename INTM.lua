@@ -102,12 +102,16 @@ function INTM:updateGradInput(input, gradOutput)
   theta=input[{{},6}]
 
   grad_s1 = torch.zeros(bsize, 3,3)
-  grad_s1[{{},1,1}]=torch.cos(theta); grad_s1[{{},1,3}]=torch.cmul(t1,torch.cos(theta))
-  grad_s1[{{},2,1}]=torch.sin(theta); grad_s1[{{},2,3}]=torch.cmul(t1,torch.sin(theta))
+  grad_s1[{{},1,1}]=torch.cos(theta);
+  grad_s1[{{},1,3}]=torch.cmul(t1,torch.cos(theta))
+  grad_s1[{{},2,1}]=torch.sin(theta);
+  grad_s1[{{},2,3}]=torch.cmul(t1,torch.sin(theta))
 
   grad_s2 = torch.zeros(bsize, 3,3)
-  grad_s2[{{},1,2}]= torch.cmul(z,torch.cos(theta))-torch.sin(theta); grad_s2[{{},1,3}]=torch.cmul(-t2,(torch.sin(theta)- torch.cmul(z,torch.cos(theta))))
-  grad_s2[{{},2,2}]=torch.cos(theta)+ torch.cmul(z,torch.sin(theta)); grad_s2[{{},2,3}]= torch.cmul(t2,(torch.cos(theta)+torch.cmul(z,torch.sin(theta))))
+  grad_s2[{{},1,2}]= torch.cmul(z,torch.cos(theta))-torch.sin(theta);
+  grad_s2[{{},1,3}]=torch.cmul(-t2,(torch.sin(theta)- torch.cmul(z,torch.cos(theta))))
+  grad_s2[{{},2,2}]=torch.cos(theta)+ torch.cmul(z,torch.sin(theta));
+  grad_s2[{{},2,3}]= torch.cmul(t2,(torch.cos(theta)+torch.cmul(z,torch.sin(theta))))
 
   grad_t1 = torch.zeros(bsize, 3,3)
   grad_t1[{{},1,3}]=torch.cmul(s1,torch.cos(theta)); grad_t1[{{},2,3}]=torch.cmul(s1,torch.sin(theta))
@@ -116,13 +120,17 @@ function INTM:updateGradInput(input, gradOutput)
   grad_t2[{{},1,3}]=torch.cmul(-s2,(torch.sin(theta) - torch.cmul(z,torch.cos(theta)))); grad_t2[{{},2,3}]=torch.cmul(s2,(torch.cos(theta) + torch.cmul(z,torch.sin(theta))))
 
   grad_z = torch.zeros(bsize, 3,3)
-  grad_z[{{},1,2}]=torch.cmul(s2,torch.cos(theta)); grad_z[{{},1,3}]=torch.cmul(s2,torch.cmul(t2,torch.cos(theta)))
-  grad_z[{{},2,2}]=torch.cmul(s2,torch.sin(theta)); grad_z[{{},2,3}]=torch.cmul(s2,torch.cmul(t2,torch.sin(theta)))
+  grad_z[{{},1,2}]=torch.cmul(s2,torch.cos(theta));
+  grad_z[{{},1,3}]=torch.cmul(s2,torch.cmul(t2,torch.cos(theta)))
+  grad_z[{{},2,2}]=torch.cmul(s2,torch.sin(theta));
+  grad_z[{{},2,3}]=torch.cmul(s2,torch.cmul(t2,torch.sin(theta)))
 
   grad_theta = torch.zeros(bsize, 3,3)
-  grad_theta[{{},1,1}] = torch.cmul(-s1,torch.sin(theta)); grad_theta[{{},1,2}]=torch.cmul(-s2,(torch.cos(theta) + torch.cmul(z,torch.sin(theta))));
+  grad_theta[{{},1,1}] = torch.cmul(-s1,torch.sin(theta));
+  grad_theta[{{},1,2}]= torch.cmul(-s2,(torch.cos(theta) + torch.cmul(z,torch.sin(theta))));
   grad_theta[{{},1,3}] = torch.cmul(-s1,torch.cmul(t1,torch.sin(theta))) - torch.cmul(s2,torch.cmul(t2,(torch.cos(theta) + torch.cmul(z,torch.sin(theta)))))
-  grad_theta[{{},2,1}] = torch.cmul(s1,torch.cos(theta)); grad_theta[{{},2,2}]=torch.cmul(-s2,(torch.sin(theta) - torch.cmul(z,torch.cos(theta))));
+  grad_theta[{{},2,1}] = torch.cmul(s1,torch.cos(theta));
+  grad_theta[{{},2,2}]= torch.cmul(-s2,(torch.sin(theta) - torch.cmul(z,torch.cos(theta))));
   grad_theta[{{},2,3}] = torch.cmul(s1,torch.cmul(t1,torch.cos(theta))) - torch.cmul(s2, torch.cmul(t2,(torch.sin(theta) - torch.cmul(z,torch.cos(theta)))))
 
   self.gradInput = torch.zeros(bsize, self.input_dim)
