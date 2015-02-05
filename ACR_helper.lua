@@ -4,7 +4,7 @@ local ACR_helper = {}
 require("sys")
 
 
-function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose)
+function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, output, pose, bsize, template, gradOutput, _gradTemplate, _gradPose, intensity)
   -- print(gradOutput)
   if mode == "singlecore" then
     start_x = 1; start_y=1;
@@ -15,14 +15,10 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
     gradTemplate = torch.zeros(_gradTemplate:size()); gradPose = torch.zeros(_gradPose:size())
   end
 
-  -- print(gradOutput)
-
   for output_x = start_x, endhere_x do
     for output_y = start_y, endhere_y do
-      --sys.tic()
       -- calculate the correspondence between template and output
       output_coords = torch.Tensor({output_x, output_y, 1})
-      --template_coords = pose * output_coords
       template_coords = torch.zeros(bsize, 3)
       for i=1, bsize do
         template_coords[{i, {}}] = pose[{i,{},{}}]*output_coords
@@ -31,21 +27,13 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       template_x = template_coords[{{},1}] --template_coords[1]
       template_y = template_coords[{{},2}] --template_coords[2]
 
-      -- template_x = template_x - 1/2
-      -- template_y = template_y - 1/2
-
       local template_x_size = template:size()[2]
       local template_y_size = template:size()[3]
       local template_x_after_offset = template_x + template_x_size / 2
       local template_y_after_offset = template_y + template_y_size / 2
 
-      -- print(template_x_after_offset[1], template_y_after_offset[1])
-
       local x_high_coeff = torch.Tensor(bsize)
       local y_high_coeff = torch.Tensor(bsize)
-
-      --x_high_coeff:map(template_x_after_offset, function(xhc, txx) return math.fmod(txx, 1) end) --x_high_coeff = template_x_after_offset % 1
-      --y_high_coeff:map(template_y, function(yhc, tyy) return math.fmod(tyy,1) end) --y_high_coeff = template_y % 1
 
       for i=1,bsize do
         x_high_coeff[i] = math.fmod(template_x_after_offset[i],1)
@@ -101,65 +89,22 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
                                                           * gradOutput[ii][output_x][output_y] )
 
           xxx = x_low_ii; yyy= y_low_ii
-
-          -- if xxx == 1 and yyy == 1  then
-          --   print("updateIndex: ", 1)
-          --   print("output coordinates: ", output_x, output_y)
-          --   print('template_coords' , template_coords)
-          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-          --   print('--------------\n\n')
-          -- end
         end
 
         if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
           gradTemplate[{ii, x_low_ii,y_high_ii}] = gradTemplate[{ii, x_low_ii,y_high_ii}] + ( -(((template_x_after_offset-x_high_ii)*(template_y_after_offset-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
-          --print(x_low_ii, y_high_ii, template_x_after_offset[1], template_y_after_offset[1], gradOutput[ii][output_x][output_y])
           xxx=x_low_ii; yyy = y_high_ii
 
-          -- if xxx == 1 and yyy == 1  then
-          --   print("updateIndex: ", 2)
-          --   print("output coordinates: ", output_x, output_y)
-          --   print('template_coords' , template_coords)
-          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-          --   print('--------------\n\n')
-          -- end
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
           gradTemplate[{ii,x_high_ii,y_low_ii}] = gradTemplate[{ii,x_high_ii,y_low_ii}] + ( -(((template_x_after_offset-x_low_ii)*(template_y_after_offset-y_high_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
-          --print(x_high_ii, y_low_ii, template_x_after_offset[1], template_y_after_offset[1], gradOutput[ii][output_x][output_y])
           xxx=x_high_ii; yyy = y_low_ii
-
-          -- if xxx == 1 and yyy == 1  then
-          --   print("updateIndex: ", 3)
-          --   print("output coordinates: ", output_x, output_y)
-          --   print('template_coords' , template_coords)
-          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-          --   print('--------------\n\n')
-          -- end
-
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
           gradTemplate[{ii,x_high_ii,y_high_ii}] = gradTemplate[{ii,x_high_ii,y_high_ii}] + ( (((template_x_after_offset-x_low_ii)*(template_y_after_offset-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
-          --print(x_high_ii, y_high_ii, template_x_after_offset[1], template_y_after_offset[1], gradOutput[ii][output_x][output_y])
           xxx = x_high_ii; yyy = y_high_ii
-
-          -- if xxx == 1 and yyy == 1  then
-          --   print("updateIndex: ", 4)
-          --   print("output coordinates: ", output_x, output_y)
-          --   print('template_coords' , template_coords)
-          --   print('template x, y after offset', template_x_after_offset[1], template_y_after_offset[1])
-          --   print(x_low_ii, x_high_ii, y_low_ii, y_high_ii)
-          --   print(gradTemplate[{ii,xxx,yyy}], gradOutput[{ii,output_x,output_y}])
-          --   print('--------------\n\n')
-          -- end
         end
 
 
@@ -171,32 +116,53 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       -- xt = pose_1_1*x + pose_1_2*y + pose_1_3;
       -- yt = pose_2_1*x + pose_2_2*y + pose_2_3;
       -- Ixy = (1./((x2-x1)*(y2-y1))) * ( (t11*(x2-xt)*(y2-yt)) + (t21*(xt-x1)*(y2-yt)) + (t12*(x2-xt)*(yt-y1)) + (t22*(xt-x1)*(yt-y1)) )
-      
-      local template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
-      local template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
-      local template_val_xlow_ylow = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)
-      local template_val_xlow_yhigh = ACR_helper:getTemplateValue(bsize, template, x_low, y_high)
+
+      -- local template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
+      -- local template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
+      -- local template_val_xlow_ylow = ACR_helper:getTemplateValue(bsize, template, x_low, y_low)
+      -- local template_val_xlow_yhigh = ACR_helper:getTemplateValue(bsize, template, x_low, y_high)
+      local template_val_xhigh_yhigh = torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_high), intensity)
+      local template_val_xhigh_ylow = torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_high, y_low), intensity)
+      local template_val_xlow_ylow = torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_low), intensity)
+      local template_val_xlow_yhigh = torch.cmul(ACR_helper:getTemplateValue(bsize, template, x_low, y_high), intensity)
+
+-- (t11*(y - y*D(ceil)(pose_1_3 + pose_1_1*x + pose_1_2*y))*(pose_2_3 - ceil(pose_2_3 + pose_2_1*x + pose_2_2*y)+ pose_2_1*x + pose_2_2*y)
+--   - t12*(y - y*D(ceil)(pose_1_3 + pose_1_1*x + pose_1_2*y))*(pose_2_3 - floor(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y)
+--   - t21*(y - y*D(floor)(pose_1_3 + pose_1_1*x + pose_1_2*y))*(pose_2_3 - ceil(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y)
+--   + t22*(y - y*D(floor)(pose_1_3 + pose_1_1*x + pose_1_2*y))*(pose_2_3 - floor(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y))
+-- /( (  ceil(pose_1_3 + pose_1_1*x + pose_1_2*y)
+--     - floor(pose_1_3 + pose_1_1*x + pose_1_2*y))
+--   *(ceil(pose_2_3 + pose_2_1*x + pose_2_2*y) - floor(pose_2_3 + pose_2_1*x + pose_2_2*y)))
+-- - ((y*D(ceil)(pose_1_3 + pose_1_1*x + pose_1_2*y) - y*D(floor)(pose_1_3 + pose_1_1*x + pose_1_2*y))*(t11*(pose_1_3 - ceil(pose_1_3 + pose_1_1*x + pose_1_2*y) + pose_1_1*x + pose_1_2*y)*(pose_2_3 - ceil(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y) - t12*(pose_1_3 - ceil(pose_1_3 + pose_1_1*x + pose_1_2*y) + pose_1_1*x + pose_1_2*y)*(pose_2_3 - floor(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y) - t21*(pose_2_3 - ceil(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y)*(pose_1_3 - floor(pose_1_3 + pose_1_1*x + pose_1_2*y) + pose_1_1*x + pose_1_2*y) + t22*(pose_1_3 - floor(pose_1_3 + pose_1_1*x + pose_1_2*y) + pose_1_1*x + pose_1_2*y)*(pose_2_3 - floor(pose_2_3 + pose_2_1*x + pose_2_2*y) + pose_2_1*x + pose_2_2*y)))/((ceil(pose_1_3 + pose_1_1*x + pose_1_2*y) - floor(pose_1_3 + pose_1_1*x + pose_1_2*y))^2*(ceil(pose_2_3 + pose_2_1*x + pose_2_2*y) - floor(pose_2_3 + pose_2_1*x + pose_2_2*y)))
+
+-- y*(t11*(pose_2_3 - y2 + pose_2_1*x + pose_2_2*y)
+--  - t12*(pose_2_3 - y1 + pose_2_1*x + pose_2_2*y)
+--  - t21*(pose_2_3 - y2 + pose_2_1*x + pose_2_2*y)
+--  + t22*(pose_2_3 - y1 + pose_2_1*x + pose_2_2*y))
 
       pose_1_1 = pose[{{},1,1}]
       pose_1_2 = pose[{{},1,2}]
       pose_1_3 = pose[{{},1,3}]
       pose_2_1 = pose[{{},2,1}]
       pose_2_2 = pose[{{},2,2}]
-      pose_2_3 = pose[{{},2,3}]      
+      pose_2_3 = pose[{{},2,3}]
 
-      local cache1 = (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y)
-      local cache2 = (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y)
-      local cache3 = (pose_1_3 - x_low + pose_1_1*output_x + pose_1_2*output_y)
-      local cache4 = (pose_1_3 - x_high + pose_1_1*output_x + pose_1_2*output_y)
 
-      local cache5 = torch.cmul(template_val_xlow_ylow, cache2)
-      local cache6 = torch.cmul(template_val_xlow_yhigh, cache1)
-      local cache7 = torch.cmul(template_val_xhigh_ylow, cache2)
-      local cache8 = torch.cmul(template_val_xhigh_yhigh, cache1)
+      -- local cache1 = (pose_2_3 - y_low + pose_2_1*output_x + pose_2_2*output_y)  -- second line cache
+      local cache1 = (template_y_after_offset - y_low)  -- second line cache
+      -- local cache2 = (pose_2_3 - y_high + pose_2_1*output_x + pose_2_2*output_y) -- first line cache
+      local cache2 = (template_y_after_offset - y_high) -- first line cache
+      local cache3 = (template_x_after_offset - x_low)
+      local cache4 = (template_x_after_offset - x_high)
+
+      local cache5 = torch.cmul(template_val_xlow_ylow, cache2) -- first line
+      local cache6 = torch.cmul(template_val_xlow_yhigh, cache1) -- second line
+      local cache7 = torch.cmul(template_val_xhigh_ylow, cache2) -- third line
+      local cache8 = torch.cmul(template_val_xhigh_yhigh, cache1) -- fourth line
 
       local cache9 = (cache5 - cache6 - cache7 + cache8)
 
-      gradPose[{{},1,1}] = gradPose[{{},1,1}] + torch.cmul( cache9 * output_x, gradOutput[{{},output_x,output_y}] )      
+      gradPose[{{},1,1}] = gradPose[{{},1,1}] + torch.cmul( cache9 * output_x, gradOutput[{{},output_x,output_y}] )
 
       gradPose[{{},1,2}] = gradPose[{{},1,2}] + torch.cmul( cache9 * output_y, gradOutput[{{},output_x,output_y}] )
 
@@ -207,17 +173,49 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       local cache11 = torch.cmul(template_val_xlow_yhigh, cache4)
       local cache12 = torch.cmul(template_val_xhigh_ylow, cache3)
       local cache13 = torch.cmul(template_val_xhigh_yhigh, cache3)
-      
-      local cache14 = (cache10 - cache11 - cache12 + cache13) 
 
-      gradPose[{{},2,1}] = gradPose[{{},2,1}] + torch.cmul( cache13 * output_x, gradOutput[{{},output_x,output_y}])
+      local cache14 = (cache10 - cache11 - cache12 + cache13)
 
-      gradPose[{{},2,2}] = gradPose[{{},2,2}] + torch.cmul( cache13 * output_y, gradOutput[{{},output_x,output_y}])
+      gradPose[{{},2,1}] = gradPose[{{},2,1}] + torch.cmul( cache14 * output_x, gradOutput[{{},output_x,output_y}])
 
-      gradPose[{{},2,3}] = gradPose[{{},2,3}] + torch.cmul( cache13, gradOutput[{{},output_x,output_y}])
+      gradPose[{{},2,2}] = gradPose[{{},2,2}] + torch.cmul( cache14 * output_y, gradOutput[{{},output_x,output_y}])
+
+      gradPose[{{},2,3}] = gradPose[{{},2,3}] + torch.cmul( cache14, gradOutput[{{},output_x,output_y}])
+
+
+      -- if output_x == 1 and output_y == 1 then
+      --   print("x, y low:", x_low[1], y_low[1])
+      --   print("x, y high:", x_high[1], y_high[1])
+      --   -- print(pose[1])
+
+      -- end
+
+      if torch.cmul( cache14 * output_x, gradOutput[{{},output_x,output_y}])[1] ~= 0 then
+
+        -- print("output coords with gradPose(1,1) grads:", output_x, output_y)
+        -- print("with offset", pose_1_3[1], pose_2_3[1], "cache14 is", cache14[1])
+        -- print("with offset", pose_1_3[1], pose_2_3[1], "cache4 is", cache4[1])
+        -- print("with offset", pose_1_3[1], pose_2_3[1], "cache10 is", cache10[1])
+        print("x, y after offset", template_x_after_offset[1], template_y_after_offset[1], "cache3 is", cache3[1], 'multiplying val at x:', x_high[1])
+        print("x, y after offset", template_x_after_offset[1], template_y_after_offset[1], "cache4 is", cache4[1], 'multiplying val at x:', x_low[1])
+      end
+
+
+      if template_val_xlow_ylow[1] > 0 or
+        template_val_xlow_yhigh[1] > 0 or
+        template_val_xhigh_ylow[1] > 0 or
+        template_val_xhigh_yhigh[1] > 0 then
+
+        -- print('cache5:', cache5)
+        -- print('cache6:', cache6)
+        -- print('cache7:', cache7)
+        -- print('cache8:', cache8)
+      end
 
       --print(x_low[1], x_high[1], y_low[1], y_high[1], template_val_xlow_ylow[1], template_val_xlow_yhigh[1], template_val_xhigh_ylow[1], template_val_xhigh_yhigh[1])
-      print(output_x, output_y, gradPose[{{},1,1}][1],gradPose[{{},1,2}][1] )
+--       print(output_x, output_y, gradPose[{{},1,1}][1],gradPose[{{},1,2}][1] )
+      -- print("template low coordinates:", x_low[1], y_low[1])
+
       --[[
       template_val_xhigh_yhigh = ACR_helper:getTemplateValue(bsize, template, x_high, y_high)
       template_val_xhigh_ylow = ACR_helper:getTemplateValue(bsize, template, x_high, y_low)
@@ -273,8 +271,8 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
     end
   end
 
-  print('END', gradPose[{{},1,1}][1], gradPose[{{},1,2}][1])
- 
+  -- print('END', gradPose[{{},1,3}][1], gradPose[{{},2,3}][1])
+
   if tostring(torch.sum(gradPose)) == tostring(0/0) then
     print("ERROR!")
 --    print('gradOutput:', torch.sum(gradOutput))

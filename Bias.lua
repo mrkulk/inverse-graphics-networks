@@ -23,8 +23,11 @@ function Bias:accGradParameters(input, gradOutput, scale)
   --print("Bias accumulating grad parameters")
   --print(gradOutput)
   scale = scale or 1
+  -- print("\n\n BIAS")
+  -- print(gradOutput)
+  -- print(self.gradBias)
   self.gradBias:add(scale, gradOutput)
-  --print(self.gradBias)
+  -- print('gradBias after', self.gradBias)
 end
 
 function Bias:zeroGradParameters()

@@ -15,7 +15,7 @@ print(enc:size())
 pose = intm:forward(enc)
 print(pose)
 ]]
-twidth = 5
+twidth = 3
 imwidth = 10
 acr = nn.ACR(1,imwidth)
 intm = nn.INTM(1,7,10)
@@ -38,22 +38,27 @@ net:add(acr)
 
 criterion = nn.MSECriterion()
 
-data = torch.Tensor({-2,-2,1,1,0,0*math.pi/4,  1})
+data = torch.Tensor({-1.5,-1.5,1,1,0,0*math.pi/4,  1})
 data = data:reshape(1,7)
 targets = torch.zeros(imwidth,imwidth):reshape(1,imwidth,imwidth)
 targets = targets * 0.5
 
-outputs = net:forward(data)
--- print(outputs)
-targets[{{}, {2,7}, {2,7}}] = outputs[{{}, {1,6}, {1,6}}]
+outputs = net:forward(data):clone()
+
+shiftedOutputs = net:forward(torch.Tensor({-2.0,-2.0,1,1,0,0*math.pi/4,  1}):reshape(1,7))
+targets[{{}, {1,7}, {1,7}}] = shiftedOutputs[{{}, {1,7}, {1,7}}]
+
+-- targets[{{}, {2,7}, {2,7}}] = outputs[{{}, {1,6}, {1,6}}]
 f = criterion:forward(outputs, targets)
 
 
 
 df_do = criterion:backward(outputs, targets)
+
+net:forward(data)
 back = net:backward(data, df_do)
 
--- 
+--
 --------------------------------------------------------------------------
 -------------------test gradients for template----------------------------
 --------------------------------------------------------------------------

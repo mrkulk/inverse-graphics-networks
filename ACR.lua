@@ -18,6 +18,7 @@ function ACR:__init(bsize, output_width)
   --
 end
 
+--[[
 function ACR:makeThreads()
 
   -- define code for workers:
@@ -50,7 +51,7 @@ function ACR:makeThreads()
     parallel.children[i]:join()
   end
 end
-
+--]]
 
 function ACR:updateOutput(input)
   local bsize = self.bsize
@@ -84,7 +85,6 @@ function ACR:updateOutput(input)
                                                     template,
                                                     template_coords[{{},1}], -- x
                                                     template_coords[{{},2}])) -- y
-
       end
     end
   end
@@ -94,7 +94,7 @@ end
 
 
 
-
+--[[
 -- define code for parent:
 function ACR:parent(grid_size, output, gradOutput, pose, bsize, template, gradTemplate, gradPose)
   local njob = parallel.nchildren
@@ -123,7 +123,7 @@ function ACR:parent(grid_size, output, gradOutput, pose, bsize, template, gradTe
     self.gradPose = self.gradPose + replies[i][2]
   end
 end
-
+--]]
 
 function ACR:updateGradInput(input, gradOutput)
   --print('ACR grad')
@@ -168,15 +168,12 @@ function ACR:updateGradInput(input, gradOutput)
   else
     start_x = 1; start_y=1;  endhere_x = self.output:size()[2]; endhere_y = self.output:size()[3]
     self.gradTemplate, self.gradPose = ACR_helper:gradHelper("singlecore", start_x, start_y, endhere_x, endhere_y ,self.output, pose, bsize, template,
-                                                              gradOutput, self.gradTemplate, self.gradPose)
+                                                              gradOutput, self.gradTemplate, self.gradPose, intensity)
   end
 
-  -- print("intensity, later: ", intensity)
-  -- print("I AM A BANANA")
   --scaling gradient with intensity
   for i=1,bsize do
     self.gradTemplate[{i,{},{}}] = self.gradTemplate[{i,{},{}}] * intensity[i]
-    self.gradPose[{i,{},{}}] = self.gradPose[{i,{},{}}] * intensity[i]
   end
 
   -- print("gradPose before final", self.gradPose:sum())
@@ -185,7 +182,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.finalgradPose[{{},{1,9}}] = self.gradPose
 
   for i=1,bsize do
-    self.finalgradPose[{i,10}] = gradOutput[{i,{},{}}]:sum()
+    self.finalgradPose[{i,10}] = torch.sum(torch.cmul(self.output[{{i,{},{}}}] / intensity[i], gradOutput[{{i,{},{}}}])) --gradOutput[{i,{},{}}]:sum()
   end
 
   self.gradInput = {self.gradTemplate, self.finalgradPose}

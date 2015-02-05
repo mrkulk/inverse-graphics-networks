@@ -22,14 +22,14 @@ input = [t1, t2, s1,s2, z, theta, intensity]
 --]]
 
 function INTM:updateOutput(input)
-  
+
   --self.output = input[{{1,self.output_dim}}]*10
   -- print(input[{{},7}]:sum())
-  t1=input[{{},1}]
-  t2=input[{{},2}]
-  s1=input[{{},3}]
-  s2=input[{{},4}]
-  z=input[{{},5}]
+  t1   =input[{{},1}]
+  t2   =input[{{},2}]
+  s1   =input[{{},3}]
+  s2   =input[{{},4}]
+  z    =input[{{},5}]
   theta=input[{{},6}]
 
   self.output[{{},1}]= torch.cmul(s1, torch.cos(theta)) --s1*math.cos(theta)
@@ -79,8 +79,14 @@ d(transform)/dtheta
 [  s1*cos(theta), -s2*(sin(theta) - z*cos(theta)),   s1*t1*cos(theta) - s2*t2*(sin(theta) - z*cos(theta))]
 [              0,                               0,                                                      0]
 
+transform =
+[ s1*cos(theta), -s2*(sin(theta) - z*cos(theta)), s1*t1*cos(theta) - s2*t2*(sin(theta) - z*cos(theta))]
+[ s1*sin(theta),  s2*(cos(theta) + z*sin(theta)), s1*t1*sin(theta) + s2*t2*(cos(theta) + z*sin(theta))]
+[             0,                               0,                                                    1]
 --]]
+
 function INTM:updateGradInput(input, gradOutput)
+  print("INTM gradOutput:", gradOutput)
   bsize = self.bsize
   --gradOutput_reshaped = gradOutput[{{1,9}}]:reshape(3,3) --last is intensity
   local gradOutput_reshaped = torch.zeros(bsize, 3, 3)
