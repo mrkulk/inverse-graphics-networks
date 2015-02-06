@@ -19,7 +19,7 @@ require 'rmsprop'
 
 torch.manualSeed(1)
 
-CHECK_GRADS = true
+CHECK_GRADS = false
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
@@ -54,7 +54,7 @@ image_width = 32
 h1size = 5--500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 2--30
+bsize = 30--30
 template_width = 3--11
 
 architecture = nn.Sequential()
@@ -204,13 +204,15 @@ rmsGradAverages = {
 }
 
 function train(epc)
+
   total_recon_error = 0
-  for i = 1, trainset:size() do
+  for i = 1, num_train_batches do
     batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
     recon_error = criterion:forward(architecture:forward(batch), batch)
     total_recon_error = total_recon_error + recon_error
 
-    print("epoch:" .. tostring(epc) .. " batch:"..i.."/" .. tostring(trainset:size()) .. " error: " .. recon_error )
+    --print("epoch:" .. tostring(epc) .. " batch:"..i.."/" .. tostring(trainset:size()) .. " error: " .. recon_error )
+
     --print(architecture:forward(batch))
     -- print(architecture.output)
 
@@ -242,9 +244,8 @@ function train(epc)
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
         ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
       end
-      print('DONE')
       -- disp progress
-      --xlua.progress(t, num_train_batches)
+      xlua.progress(i, num_train_batches)
 
       --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
       --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
@@ -271,7 +272,8 @@ if CHECK_GRADS then
     --checkTemplateGrads(criterion, architecture, batch, num_acrs)
   end
 else
-  for epc = 1,100 do
+  num_train_batches = math.floor(trainset:size()/bsize)
+  for epc = 1,500 do
     train(epc)
   end
 end
