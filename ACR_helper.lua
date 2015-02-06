@@ -147,6 +147,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
         end
 
         if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
+          --print(gradTemplate:size())
           gradTemplate[ii][x_low_ii][y_high_ii] = gradTemplate[ii][x_low_ii][y_high_ii] + ( -(((template_x_after_offset[ii]-x_high_ii)*(template_y_after_offset[ii]-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
           --print('ox:',output_x, 'oy', output_y, 'gradT', gradTemplate[ii][x_low_ii][y_high_ii])
         end

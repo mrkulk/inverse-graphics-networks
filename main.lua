@@ -219,9 +219,8 @@ function train(epc)
       for ac = 1,num_acrs do
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
         ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
-        print(ac_bias.bias:size())
       end
-      
+      print('DONE')
       -- disp progress
       --xlua.progress(t, num_train_batches)
 

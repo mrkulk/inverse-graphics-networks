@@ -176,7 +176,7 @@ function ACR:updateGradInput(input, gradOutput)
     self.gradTemplate[{i,{},{}}] = self.gradTemplate[{i,{},{}}] * intensity[i]
   end
 
-  self.gradTemplate = self.gradTemplate:reshape(input[1]:size())
+  --self.gradTemplate = self.gradTemplate:reshape(input[1]:size())
 
   -- print("gradPose before final", self.gradPose:sum())
   self.gradPose = self.gradPose:reshape(bsize,9)

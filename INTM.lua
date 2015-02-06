@@ -86,7 +86,7 @@ transform =
 --]]
 
 function INTM:updateGradInput(input, gradOutput)
-  print("INTM gradOutput:", gradOutput)
+  --print("INTM gradOutput:", gradOutput)
   bsize = self.bsize
   --gradOutput_reshaped = gradOutput[{{1,9}}]:reshape(3,3) --last is intensity
   local gradOutput_reshaped = torch.zeros(bsize, 3, 3)
