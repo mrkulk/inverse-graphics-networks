@@ -19,7 +19,7 @@ require 'rmsprop'
 
 torch.manualSeed(1)
 
-CHECK_GRADS = false
+CHECK_GRADS = true
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
