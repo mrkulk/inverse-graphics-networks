@@ -128,8 +128,8 @@ end
 
 template_error = torch.norm(acrGradInput[1] - fd[1])
 pose_error = torch.norm(acrGradInput[2] - fd[2])
-print("\nTemplate gradient error: "..colors.FAIL .. prettyError(template_error))
-print("Pose gradient error:\t "..colors.FAIL .. prettyError(pose_error))
+print("\nTemplate gradient error: " .. prettyError(template_error))
+print("Pose gradient error:\t " .. prettyError(pose_error))
 
 
 

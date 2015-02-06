@@ -148,7 +148,7 @@ function saveACRs(step, model)
                     image_width * acrs_down + (acrs_down - 1) * padding,
                     image_width * acrs_across + (acrs_across - 1) * padding)
   for j, acr in ipairs(acrs) do
-    x_index = math.floor((j - 1) / acrs_down)
+    x_index = math.floor((j - 1) / acrs_across)
     x_location = (x_index) * image_width + x_index * padding
     y_index = math.floor((j - 1) % acrs_down)
     y_location = (y_index) * image_width + y_index * padding
@@ -156,7 +156,32 @@ function saveACRs(step, model)
                 {y_location + 1, y_location + image_width}}] = acr.output[1]
   end
   acr_output = acr_output:reshape(1, acr_output:size()[1], acr_output:size()[2])
-  image.save("test_images/step_"..step.."_acrs.png", acr_output)
+  image.save("test_images/epoch_"..epc.."_step_"..step.."_acrs.png", acr_output)
+end
+
+function saveTemplates(epc, step, model)
+  -- acrs = model:findModules('nn.ACR')
+  local biases = {}
+  for i = 1, num_acrs do
+    table.insert(biases, model.modules[3].modules[i].modules[3].modules[1].modules[1])
+  end
+  padding = 5
+  across = math.ceil(math.sqrt(#biases))
+  down = math.ceil(#biases / across)
+
+  bias_output = torch.zeros(
+                    template_width * down + (down - 1) * padding,
+                    template_width * across + (across - 1) * padding)
+  for j, bias in ipairs(biases) do
+    x_index = math.floor((j - 1) / across)
+    x_location = (x_index) * template_width + x_index * padding
+    y_index = math.floor((j - 1) % down)
+    y_location = (y_index) * template_width + y_index * padding
+    bias_output[{{x_location + 1, x_location + template_width},
+                {y_location + 1, y_location + template_width}}] = bias.output[1]
+  end
+  bias_output = bias_output:reshape(1, bias_output:size()[1], bias_output:size()[2])
+  image.save("test_images/epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
 end
 
 
@@ -178,12 +203,9 @@ rmsGradAverages = {
   encoderOutputBias = 1
 }
 
-
-
-
 function train(epc)
   total_recon_error = 0
-  for i = 1,1000 do--1, trainset:size() do
+  for i = 1, trainset:size() do
     batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
     recon_error = criterion:forward(architecture:forward(batch), batch)
     total_recon_error = total_recon_error + recon_error
@@ -195,9 +217,9 @@ function train(epc)
 
     if i % 1 == 0 then
       local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
-      -- saveACRs(i, architecture)
-      -- image.save("test_images/step_"..i.."_recon.png", out)
-      --image.save("test_images/step_"..i.."_truth.png", batch[1])
+      saveTemplates(epc, i, architecture)
+      image.save("test_images/epoch_"..epc.."_step_"..i.."_recon.png", out)
+      image.save("test_images/epoch_"..epc.."_step_"..i.."_truth.png", batch[1])
     end
 
     architecture:zeroGradParameters()
