@@ -134,8 +134,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       -- yt = d*x + e*y + f;
       -- Ixy = (1./((x2-x1)*(y2-y1))) * ( (t11*(x2-xt)*(y2-yt)) + (t21*(xt-x1)*(y2-yt)) + (t12*(x2-xt)*(yt-y1)) + (t22*(xt-x1)*(yt-y1)) )
 
-      xxx = nil; yyy=nil;
-      for ii=1,bsize do
+      for ii=1, bsize do
         local x_low_ii = x_low[ii]; local y_low_ii = y_low[ii];
         local x_high_ii = x_high[ii]; local y_high_ii = y_high[ii];
         local ratio_xy = (x_low_ii-x_high_ii)*(y_low_ii-y_high_ii)
@@ -146,23 +145,18 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
                                                    + ( (((template_x_after_offset-x_high_ii)*(template_y_after_offset-y_high_ii))/ ratio_xy )
                                                           * gradOutput[ii][output_x][output_y] )
 
-          xxx = x_low_ii; yyy= y_low_ii
         end
 
         if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
           gradTemplate[{ii, x_low_ii,y_high_ii}] = gradTemplate[{ii, x_low_ii,y_high_ii}] + ( -(((template_x_after_offset-x_high_ii)*(template_y_after_offset-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
-          xxx=x_low_ii; yyy = y_high_ii
-
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
           gradTemplate[{ii,x_high_ii,y_low_ii}] = gradTemplate[{ii,x_high_ii,y_low_ii}] + ( -(((template_x_after_offset-x_low_ii)*(template_y_after_offset-y_high_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
-          xxx=x_high_ii; yyy = y_low_ii
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
           gradTemplate[{ii,x_high_ii,y_high_ii}] = gradTemplate[{ii,x_high_ii,y_high_ii}] + ( (((template_x_after_offset-x_low_ii)*(template_y_after_offset-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
-          xxx = x_high_ii; yyy = y_high_ii
         end
 
 

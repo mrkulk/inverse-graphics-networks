@@ -1,3 +1,4 @@
+
 require 'nn'
 dofile 'INTM.lua'
 dofile 'ACR.lua'
@@ -5,7 +6,7 @@ dofile 'Bias.lua'
 
 require 'optim'
 
-torch.manualSeed(1)
+--torch.manualSeed(1)
 
 --[[
 intm = nn.INTM(1,7,10)
@@ -38,7 +39,7 @@ net:add(acr)
 
 criterion = nn.MSECriterion()
 
-data = torch.Tensor({-1.51,-1.51,.4,1.4,0.2,1*math.pi/4,  0.3})
+data = torch.Tensor({-0.50,-1.51,.4,1.4,0.2,1*math.pi/4,  0.3})
 data = data:reshape(1,7)
 targets = torch.zeros(imwidth,imwidth):reshape(1,imwidth,imwidth)
 targets = targets * 0.5
@@ -62,7 +63,7 @@ back = net:backward(data, df_do)
 --------------------------------------------------------------------------
 -------------------test gradients for template----------------------------
 --------------------------------------------------------------------------
-if false then
+if true then
 	-- print('pred:',outputs)
 	-- print('target:', targets)
 
