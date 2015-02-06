@@ -14,10 +14,12 @@ require 'ParallelParallel'
 require 'PrintModule'
 require 'INTMReg'
 require 'checkgradients'
+require 'xlua'
+require 'rmsprop'
 
 torch.manualSeed(1)
 
-CHECK_GRADS = true
+CHECK_GRADS = false
 
 function getDigitSet(digit)
   trainData = mnist.loadTrainSet(60000, {32,32})
@@ -167,13 +169,17 @@ local momentum = 0.95
 -- for ac=1,num_acrs do
 --   temp[ac] = torch.zeros(template_width*template_width)
 -- end
-local gradAverage = {
+
+rmsGradAverages = {
   templates = torch.ones(num_acrs),
-  encoderHidden = 1,
-  encoderOutput = 1,
+  encoderHiddenWt = 1,
+  encoderOutputWt = 1,
   encoderHiddenBias = 1,
   encoderOutputBias = 1
 }
+
+
+
 
 function train(epc)
   total_recon_error = 0
@@ -200,49 +206,24 @@ function train(epc)
     RMSPROP = true
 
     if RMSPROP == true then
-      --------calculating gradient averages---------------
+
+      -- Stochastic RMSProp on separate layers
       local encoder_hidden = architecture.modules[1].modules[2]
-      gradAverage.encoderHidden = 1/gamma * torch.pow(encoder_hidden.gradWeight:norm(),2)
-                                  + (1-(1/gamma))*gradAverage.encoderHidden
-      gradAverage.encoderHiddenBias = 1/gamma * torch.pow(encoder_hidden.gradBias:norm(),2)
-                                  + (1-(1/gamma))*gradAverage.encoderHiddenBias
+      encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt)
+      encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias)
 
       local encoder_output = architecture.modules[1].modules[4]
-      gradAverage.encoderOutput = 1/gamma * torch.pow(encoder_output.gradWeight:norm(),2)
-                                  + (1-(1/gamma))*gradAverage.encoderOutput
-      gradAverage.encoderOutputBias = 1/gamma * torch.pow(encoder_output.gradBias:norm(),2)
-                                  + (1-(1/gamma))*gradAverage.encoderOutputBias
+      encoder_output.weight = rmsprop(encoder_output.weight, encoder_output.gradWeight, rmsGradAverages.encoderOutputWt)
+      encoder_output.bias = rmsprop(encoder_output.bias, encoder_output.gradBias, rmsGradAverages.encoderOutputBias)
 
       for ac = 1,num_acrs do
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-        gradAverage.templates[ac] = 1/gamma * torch.pow(ac_bias.gradBias:norm(),2)
-                                  + (1-(1/gamma))*gradAverage.templates[ac]
+        ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
+        print(ac_bias.bias:size())
       end
-
-      --------update parameters --------------------------
-      encoder_hidden.weight = encoder_hidden.weight
-              - (encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden)
-      --print('encoder_hidden weight', torch.sum(encoder_hidden.gradWeight * meta_learning_alpha / gradAverage.encoderHidden))
-
-
-      encoder_hidden.bias = encoder_hidden.bias
-              - (encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias)
-      --print('encoder_hidden bias', torch.sum(encoder_hidden.gradBias * meta_learning_alpha / gradAverage.encoderHiddenBias))
-
-      encoder_output.weight = encoder_output.weight
-              - (encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput)
-      --print('encoder_output weight', torch.sum(encoder_output.gradWeight * meta_learning_alpha / gradAverage.encoderOutput))
-
-      encoder_output.bias = encoder_output.bias
-              - (encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias)
-      --print('encoder_output bias', torch.sum(encoder_output.gradBias * meta_learning_alpha / gradAverage.encoderOutputBias))
-
-      for ac=1,num_acrs do
-        local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-        ac_bias.bias = ac_bias.bias
-              - (ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac])
-        --print('template bias:', torch.sum(ac_bias.gradBias * meta_learning_alpha / gradAverage.templates[ac]), torch.sum(ac_bias.gradBias), gradAverage.templates[ac])
-      end
+      
+      -- disp progress
+      --xlua.progress(t, num_train_batches)
 
       --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
       --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
