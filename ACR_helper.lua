@@ -138,29 +138,32 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
         local x_low_ii = x_low[ii]; local y_low_ii = y_low[ii];
         local x_high_ii = x_high[ii]; local y_high_ii = y_high[ii];
         local ratio_xy = (x_low_ii-x_high_ii)*(y_low_ii-y_high_ii)
-
         --------------------------- Template gradient -------------------------------
         if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
-          gradTemplate[{ii, x_low_ii, y_low_ii}] = gradTemplate[{ii, x_low_ii, y_low_ii}]
-                                                   + ( (((template_x_after_offset-x_high_ii)*(template_y_after_offset-y_high_ii))/ ratio_xy )
+          gradTemplate[ii][x_low_ii][y_low_ii] = gradTemplate[ii][x_low_ii][y_low_ii]
+                                                   + ( (((template_x_after_offset[ii]-x_high_ii)*(template_y_after_offset[ii]-y_high_ii))/ ratio_xy )
                                                           * gradOutput[ii][output_x][output_y] )
-
+          --print('ox:',output_x, 'oy', output_y, 'gradT', gradTemplate[ii][x_low_ii][y_low_ii])
         end
 
         if x_low_ii >= 1 and x_low_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
-          gradTemplate[{ii, x_low_ii,y_high_ii}] = gradTemplate[{ii, x_low_ii,y_high_ii}] + ( -(((template_x_after_offset-x_high_ii)*(template_y_after_offset-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          gradTemplate[ii][x_low_ii][y_high_ii] = gradTemplate[ii][x_low_ii][y_high_ii] + ( -(((template_x_after_offset[ii]-x_high_ii)*(template_y_after_offset[ii]-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          --print('ox:',output_x, 'oy', output_y, 'gradT', gradTemplate[ii][x_low_ii][y_high_ii])
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_low_ii >= 1 and y_low_ii <= template:size()[2] then
-          gradTemplate[{ii,x_high_ii,y_low_ii}] = gradTemplate[{ii,x_high_ii,y_low_ii}] + ( -(((template_x_after_offset-x_low_ii)*(template_y_after_offset-y_high_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          gradTemplate[ii][x_high_ii][y_low_ii] = gradTemplate[ii][x_high_ii][y_low_ii] + ( -(((template_x_after_offset[ii]-x_low_ii)*(template_y_after_offset[ii]-y_high_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          --print('ox:',output_x, 'oy', output_y, 'gradT', gradTemplate[ii][x_high_ii][y_low_ii])
         end
 
         if x_high_ii >= 1 and x_high_ii <= template:size()[2] and y_high_ii >= 1 and y_high_ii <= template:size()[2] then
-          gradTemplate[{ii,x_high_ii,y_high_ii}] = gradTemplate[{ii,x_high_ii,y_high_ii}] + ( (((template_x_after_offset-x_low_ii)*(template_y_after_offset-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          gradTemplate[ii][x_high_ii][y_high_ii] = gradTemplate[ii][x_high_ii][y_high_ii] + ( (((template_x_after_offset[ii]-x_low_ii)*(template_y_after_offset[ii]-y_low_ii))/ ratio_xy ) * gradOutput[ii][output_x][output_y] )
+          --print('ox:',output_x, 'oy', output_y, 'gradT', gradTemplate[ii][x_high_ii][y_high_ii])
         end
 
 
       end
+
       --]]
       ------------------- Pose Gradient ---------------------------
       -- syms a b c d e f x y xt yt x1 x2 y1 y2 t11 t12 t21 t22

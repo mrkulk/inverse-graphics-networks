@@ -2,14 +2,14 @@ require 'nn'
 require 'ACR'
 require 'vis'
 
-batch_size = 5
+batch_size = 2
 image_width = 10
 template_width = 3
 
 acr = nn.ACR(batch_size, image_width)
 
 
-randomize = true
+randomize = false
 
 if randomize then
   iGeoPose = torch.rand(batch_size, 10)
@@ -25,17 +25,21 @@ else
   cos = math.cos
   sin = math.sin
 
-  iGeoPose = torch.Tensor({
-             s1*cos(theta), -s2*(sin(theta) - z*cos(theta)), s1*t1*cos(theta) - s2*t2*(sin(theta) - z*cos(theta)),
-             s1*sin(theta),  s2*(cos(theta) + z*sin(theta)), s1*t1*sin(theta) + s2*t2*(cos(theta) + z*sin(theta)),
-             0,              0,                              1,
-        1})
+  iGeoPose = torch.rand(batch_size, 10)
 
+  for i=1,batch_size do
+    tmp_iGeoPose = torch.Tensor({
+               s1*cos(theta), -s2*(sin(theta) - z*cos(theta)), s1*t1*cos(theta) - s2*t2*(sin(theta) - z*cos(theta)),
+               s1*sin(theta),  s2*(cos(theta) + z*sin(theta)), s1*t1*sin(theta) + s2*t2*(cos(theta) + z*sin(theta)),
+               0,              0,                              1,
+          1})
+    iGeoPose[i] = tmp_iGeoPose
+  end
   -- iGeoPose = torch.Tensor({ 1,  0.5, -7,
   --                           0,  1, -3,
   --                           0,  0,  1, 1}):reshape(1, 10)
 
-  iGeoPose = iGeoPose:reshape(1, 10)
+  -- iGeoPose = iGeoPose:reshape(batch_size, 10)
 end
 
 template = torch.rand(batch_size, template_width ^ 2)

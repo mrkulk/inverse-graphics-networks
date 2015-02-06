@@ -265,8 +265,8 @@ if CHECK_GRADS then
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   -- print(batch)
   if CHECK_GRADS then
-    --checkEncoderGrads(criterion, architecture, batch)
-    checkTemplateGrads(criterion, architecture, batch, num_acrs)
+    checkEncoderGrads(criterion, architecture, batch)
+    --checkTemplateGrads(criterion, architecture, batch, num_acrs)
   end
 else
   for epc = 1,100 do
