@@ -114,22 +114,22 @@ for i = 1, batch_size do
   print("TRUE gradTemplate ↑")
 
   -- print("DIFF: "..colors.FAIL)
-  print(colors.FAIL .. simplestr(fd[1][i] - acrGradInput[1][i]))
+  print(prettyError(fd[1][i] - acrGradInput[1][i]))
 
   print("\nACR gradPose ↓")
   print(simplestr(acrGradInput[2][i]))
   print(simplestr(fd[2][i]))
   print("TRUE gradPose ↑")
 
-  print(colors.FAIL .. simplestr(fd[2][i] - acrGradInput[2][i]))
+  print(prettyError(fd[2][i] - acrGradInput[2][i]))
 end
 
 
 
 template_error = torch.norm(acrGradInput[1] - fd[1])
 pose_error = torch.norm(acrGradInput[2] - fd[2])
-print("\nTemplate gradient error: "..colors.FAIL .. tostring(template_error))
-print("Pose gradient error:\t "..colors.FAIL .. tostring(pose_error))
+print("\nTemplate gradient error: "..colors.FAIL .. prettyError(template_error))
+print("Pose gradient error:\t "..colors.FAIL .. prettyError(pose_error))
 
 
 
