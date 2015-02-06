@@ -1,17 +1,18 @@
 require 'nn'
 require 'ACR'
+require 'vis'
 
-batch_size = 1
+batch_size = 5
 image_width = 10
 template_width = 3
 
 acr = nn.ACR(batch_size, image_width)
 
 
-randomize = false
+randomize = true
 
 if randomize then
-  iGeoPose = torch.rand(1, 10)
+  iGeoPose = torch.rand(batch_size, 10)
 else
   torch.manualSeed(1)
   t1 = -8.51
@@ -59,35 +60,39 @@ function finiteDiff()
   epsilon = 1e-3
 
   gradTemplate = torch.zeros(template:size())
-  for i = 1, gradTemplate:size()[2] do
-    tempTemplate = template:clone()
+  for batchIndex = 1, batch_size do
+    for i = 1, gradTemplate:size()[2] do
+      tempTemplate = template:clone()
 
-    tempTemplate[1][i] = template[1][i] - epsilon
-    outputNeg = acr:forward({tempTemplate, iGeoPose})
-    lossNeg = loss(outputNeg)
+      tempTemplate[batchIndex][i] = template[batchIndex][i] - epsilon
+      outputNeg = acr:forward({tempTemplate, iGeoPose})
+      lossNeg = loss(outputNeg)
 
-    tempTemplate[1][i] = template[1][i] + epsilon
-    outputPos = acr:forward({tempTemplate, iGeoPose})
-    lossPos = loss(outputPos)
+      tempTemplate[batchIndex][i] = template[batchIndex][i] + epsilon
+      outputPos = acr:forward({tempTemplate, iGeoPose})
+      lossPos = loss(outputPos)
 
-    finiteDiffGrad = (lossPos - lossNeg) / (2 * epsilon)
-    gradTemplate[1][i] = finiteDiffGrad
+      finiteDiffGrad = (lossPos - lossNeg) / (2 * epsilon)
+      gradTemplate[batchIndex][i] = finiteDiffGrad
+    end
   end
 
   gradGeoPose = torch.zeros(iGeoPose:size())
-  for i = 1, gradGeoPose:size()[2] do
-    tempGeoPose = iGeoPose:clone()
+  for batchIndex = 1, batch_size do
+    for i = 1, gradGeoPose:size()[2] do
+      tempGeoPose = iGeoPose:clone()
 
-    tempGeoPose[1][i] = iGeoPose[1][i] - epsilon
-    outputNeg = acr:forward({template, tempGeoPose})
-    lossNeg = loss(outputNeg)
+      tempGeoPose[batchIndex][i] = iGeoPose[batchIndex][i] - epsilon
+      outputNeg = acr:forward({template, tempGeoPose})
+      lossNeg = loss(outputNeg)
 
-    tempGeoPose[1][i] = iGeoPose[1][i] + epsilon
-    outputPos = acr:forward({template, tempGeoPose})
-    lossPos = loss(outputPos)
+      tempGeoPose[batchIndex][i] = iGeoPose[batchIndex][i] + epsilon
+      outputPos = acr:forward({template, tempGeoPose})
+      lossPos = loss(outputPos)
 
-    finiteDiffGrad = (lossPos - lossNeg) / (2 * epsilon)
-    gradGeoPose[1][i] = finiteDiffGrad
+      finiteDiffGrad = (lossPos - lossNeg) / (2 * epsilon)
+      gradGeoPose[batchIndex][i] = finiteDiffGrad
+    end
   end
 
   return {gradTemplate, gradGeoPose}
@@ -95,17 +100,32 @@ end
 
 fd = finiteDiff()
 
--- print("ACR gradTemplate")
--- print(acrGradInput[1])
--- print("true gradTemplate")
--- print(fd[1])
 
-print("ACR gradGeoPose")
-print(acrGradInput[2])
-print("true gradGeoPose")
-print(fd[2])
 
-print("Pose gradient error:", torch.norm(acrGradInput[2] - fd[2]))
+for i = 1, batch_size do
+  print("\n".. colors.HEADER .."BATCH "..i)
+  print("ACR gradTemplate ↓")
+  print(simplestr(acrGradInput[1][i]))
+  print(simplestr(fd[1][i]))
+  print("TRUE gradTemplate ↑")
+
+  -- print("DIFF: "..colors.FAIL)
+  print(colors.FAIL .. simplestr(fd[1][i] - acrGradInput[1][i]))
+
+  print("\nACR gradPose ↓")
+  print(simplestr(acrGradInput[2][i]))
+  print(simplestr(fd[2][i]))
+  print("TRUE gradPose ↑")
+
+  print(colors.FAIL .. simplestr(fd[2][i] - acrGradInput[2][i]))
+end
+
+
+
+template_error = torch.norm(acrGradInput[1] - fd[1])
+pose_error = torch.norm(acrGradInput[2] - fd[2])
+print("\nTemplate gradient error: "..colors.FAIL .. tostring(template_error))
+print("Pose gradient error:\t "..colors.FAIL .. tostring(pose_error))
 
 
 
