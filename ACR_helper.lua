@@ -11,6 +11,7 @@ function ACR_helper:updateGradPoseAtLocation(output_x, output_y, template_x_afte
   local template_val_xlow_ylow = ACR_helper:getSingleTemplateValue(template, x_low, y_low) * intensity
   local template_val_xlow_yhigh = ACR_helper:getSingleTemplateValue(template, x_low, y_high) * intensity
 
+
   pose_1_1 = pose[{1,1}]
   pose_1_2 = pose[{1,2}]
   pose_1_3 = pose[{1,3}]
@@ -89,6 +90,8 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
       local template_y_size = template:size()[3]
       local template_x_after_offset = template_x + template_x_size / 2
       local template_y_after_offset = template_y + template_y_size / 2
+
+
 
       local x_high_coeff = torch.Tensor(bsize)
       local y_high_coeff = torch.Tensor(bsize)

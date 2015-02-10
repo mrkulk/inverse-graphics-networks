@@ -49,13 +49,13 @@ end
 trainset = getDigitSet(1)
 
 --number of acr's
-num_acrs = 2--9
+num_acrs = 9
 image_width = 32
-h1size = 5--500
+h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 30--30
-template_width = 3--11
+bsize = 30
+template_width = 11
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
@@ -268,8 +268,8 @@ if CHECK_GRADS then
   batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
   -- print(batch)
   if CHECK_GRADS then
-    checkEncoderGrads(criterion, architecture, batch)
-    --checkTemplateGrads(criterion, architecture, batch, num_acrs)
+    --checkEncoderGrads(criterion, architecture, batch)
+    checkTemplateGrads(criterion, architecture, batch, num_acrs)
   end
 else
   num_train_batches = math.floor(trainset:size()/bsize)

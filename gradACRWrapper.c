@@ -96,14 +96,18 @@ static int gradACRWrapper(lua_State *L){
 	THDoubleTensor *tgradOutput = luaT_toudata(L, 7, torch_DoubleTensor_id);
   	double *gradOutput = tgradOutput->storage->data;
 
-	THDoubleTensor *tgradAll = luaT_toudata(L, 8, torch_DoubleTensor_id);
+THDoubleTensor *tintensity = luaT_toudata(L, 8, torch_DoubleTensor_id);
+    double *intensity = tintensity->storage->data;
+    
+	THDoubleTensor *tgradAll = luaT_toudata(L, 9, torch_DoubleTensor_id);
   	double *gradAll = tgradAll->storage->data;
+
 
   	double *gradTemplate = gradAll;
   	double *gradPose = gradAll + bsize*tdim*tdim; 
 
 	get_gradACR_gradient( imwidth, tdim, bsize, output, pose, 
-					 _template,  gradOutput,  gradTemplate,  gradPose);	
+					 _template,  gradOutput,  gradTemplate, gradPose, intensity);	
 	return 1;  
 
 }

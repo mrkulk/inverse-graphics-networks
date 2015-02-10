@@ -1,7 +1,7 @@
 --[[ An implementation of RMSprop ]]
 
 function rmsprop( x, dfdx, gradAverage)
-	meta_learning_alpha = 0.001
+	meta_learning_alpha = 0.05
 
 	gradAverageArr=torch.zeros(2)
 	gamma = {math.exp(3),math.exp(6)} 

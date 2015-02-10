@@ -142,7 +142,7 @@ function ACR:updateGradInput(input, gradOutput)
   self.gradPose = torch.Tensor(pose:size())
   self.gradPose:fill(0)
 
-  local GPU = 0
+  local GPU = 1
   local runMulticore = 0
 
   if GPU == 1 then
@@ -156,7 +156,7 @@ function ACR:updateGradInput(input, gradOutput)
 
     res = gradACRWrapper(imwidth, tdim, bsize,
       self.output:reshape(bsize*imwidth*imwidth), pose:reshape(bsize*3*3),
-      template:reshape(bsize*tdim*tdim), gradOutput:reshape(bsize*imwidth*imwidth),
+      template:reshape(bsize*tdim*tdim), gradOutput:reshape(bsize*imwidth*imwidth), intensity,
       gradAll)
 
     --unpack from lua-C interface
