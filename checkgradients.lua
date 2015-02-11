@@ -31,7 +31,7 @@ function checkEncoderGrads(criterion, model, data)
     end
   end
 
-  print('[GRADIENT CHECKER: TEMPLATE] Error: ', grad_diff)  
+  print('[GRADIENT CHECKER: TEMPLATE] Error: ', grad_diff)
 end
 
 
@@ -65,13 +65,13 @@ function checkTemplateGrads(criterion, model, data, num_acrs)
         print('.')
         ac_bias.bias[id][ii] = t
       end
-      local diff = torch.sum(torch.pow(ac_bias_truegrad - ac_bias.gradBias[id],2))
+      diff = torch.sum(torch.pow(ac_bias_truegrad - ac_bias.gradBias[id],2))
       grad_diff = grad_diff + diff
     end
     print('ACR error for batch', id, ' ', diff)
-    print('finite',ac_bias_truegrad)
+    print('finite', ac_bias_truegrad)
     print('our', ac_bias.gradBias[id])
-  
+
   end
 
   print('[GRADIENT CHECKER: TEMPLATE] Error: ', grad_diff)

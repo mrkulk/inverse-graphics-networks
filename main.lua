@@ -19,6 +19,19 @@ require 'rmsprop'
 
 torch.manualSeed(1)
 
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text()
+cmd:text('Build and test an inverse graphics deep network.')
+cmd:text()
+cmd:text('Options')
+cmd:option('-imagefolder','default','where to store image outputs from the network')
+cmd:text()
+
+params = cmd:parse(arg)
+os.execute("mkdir test_images/"..params.imagefolder)
+saved_image_path = "test_images/"..params.imagefolder.."/"
+
 CHECK_GRADS = false
 
 function getDigitSet(digit)
@@ -165,7 +178,7 @@ function saveACRs(step, model)
                 {y_location + 1, y_location + image_width}}] = acr.output[1]
   end
   acr_output = acr_output:reshape(1, acr_output:size()[1], acr_output:size()[2])
-  image.save("test_images/epoch_"..epc.."_step_"..step.."_acrs.png", acr_output)
+  image.save(saved_image_path.."epoch_"..epc.."_step_"..step.."_acrs.png", acr_output)
 end
 
 function saveTemplates(epc, step, model)
@@ -190,12 +203,10 @@ function saveTemplates(epc, step, model)
                 {y_location + 1, y_location + template_width}}] = bias.output[1]
   end
   bias_output = bias_output:reshape(1, bias_output:size()[1], bias_output:size()[2])
-  image.save("test_images/epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
+  image.save(saved_image_path.."epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
 end
 
 
--- local learning_rate = 0.000001
-local meta_learning_alpha = 0.00001
 local gamma = math.exp(3)
 local momentum = 0.95
 
@@ -228,8 +239,8 @@ function train(epc)
     if saveImages and i % 1 == 0 then
       local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
       saveTemplates(epc, i, architecture)
-      image.save("test_images/epoch_"..epc.."_step_"..i.."_recon.png", out)
-      image.save("test_images/epoch_"..epc.."_step_"..i.."_truth.png", batch[1])
+      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_recon.png", out)
+      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_truth.png", batch[1])
     end
 
     architecture:zeroGradParameters()
@@ -252,8 +263,6 @@ function train(epc)
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
         ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
       end
-      -- disp progress
-      xlua.progress(i, trainset:nBatches(bsize))
 
       --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
       --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
@@ -268,6 +277,8 @@ function train(epc)
         print(torch.sum(ac_bias.gradBias))
       end
     end
+    -- display progress
+    xlua.progress(i, trainset:nBatches(bsize))
   end
 end
 
