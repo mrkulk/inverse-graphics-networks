@@ -51,9 +51,14 @@ function ACR_helper:updateGradPoseAtLocation(batchIndex, output_x, output_y, tem
 
   gradPose[{2,3}] = gradPose[{2,3}] + scale * cache14 * gradOutput[{output_x,output_y}]
 
-  if (cache9 * output_x * gradOutput[{output_x,output_y}]) ~= 0 then
-    print('bid:',batchIndex, output_x, output_y, cache9 * output_x * gradOutput[{output_x,output_y}])
-  end
+  -- if (cache9 * output_x * gradOutput[{output_x,output_y}]) ~= 0 and batchIndex == 1 then
+  --   print('bid:',batchIndex, output_x, output_y, cache9 * output_x * gradOutput[{output_x,output_y}])
+  -- end
+  print(output_x, output_y)
+  -- if (output_x == 11 and output_y == 8) then
+  --   print('@ bid:',batchIndex, output_x, output_y, cache9 * output_x * gradOutput[{output_x,output_y}])
+  -- end
+
   -- if torch.cmul( cache14 * output_x, gradOutput[{{},output_x,output_y}])[1] ~= 0 then
 
   --   -- print("output coords with gradPose(1,1) grads:", output_x, output_y)
@@ -76,7 +81,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
     --need to add them outside the thread as threads may override these variables causing funny errors
     gradTemplate = torch.zeros(_gradTemplate:size()); gradPose = torch.zeros(_gradPose:size())
   end
-
+  
   for output_x = start_x, endhere_x do
     for output_y = start_y, endhere_y do
       -- calculate the correspondence between template and output
