@@ -42,7 +42,16 @@ function getDigitSet(digit)
         return tbl._raw[tbl._indices[key]][1][1]
       end
     end})
-  function digitSet:size() return #digitSet._indices end
+  function digitSet:size() return #self._indices end
+  function digitSet:getBatch(batch_size, index)
+    if batch_size * index > self:size() then
+      error("Batch index too high! Not that many samples.")
+    end
+    return self[{{(index - 1) * batch_size + 1, index * batch_size}}]
+  end
+  function digitSet:nBatches(batch_size)
+    return math.floor(self:size()/bsize)
+  end
   return digitSet
 end
 
@@ -69,8 +78,8 @@ architecture:add(encoder)
 architecture:add(nn.Reshape(num_acrs,7))
 
 -- Creating intm and acr's
-decoder = nn.Parallel(2,2)
---decoder = nn.ParallelParallel(2,2)
+-- decoder = nn.Parallel(2,2)
+decoder = nn.ParallelParallel(2,2)
 for ii=1,num_acrs do
   local acr_wrapper = nn.Sequential()
   acr_wrapper:add(nn.Replicate(2))
@@ -204,10 +213,9 @@ rmsGradAverages = {
 }
 
 function train(epc)
-
   total_recon_error = 0
-  for i = 1, num_train_batches do
-    batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
+  for i = 1, trainset:nBatches(bsize) do
+    batch = trainset:getBatch(bsize, i)--trainset[{{(i - 1) * bsize + 1, i * bsize}}]
     recon_error = criterion:forward(architecture:forward(batch), batch)
     total_recon_error = total_recon_error + recon_error
 
@@ -216,8 +224,8 @@ function train(epc)
     --print(architecture:forward(batch))
     -- print(architecture.output)
 
-
-    if i % 1 == 0 then
+    saveImages = true
+    if saveImages and i % 1 == 0 then
       local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
       saveTemplates(epc, i, architecture)
       image.save("test_images/epoch_"..epc.."_step_"..i.."_recon.png", out)
@@ -245,7 +253,7 @@ function train(epc)
         ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
       end
       -- disp progress
-      xlua.progress(i, num_train_batches)
+      xlua.progress(i, trainset:nBatches(bsize))
 
       --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
       --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
@@ -265,18 +273,19 @@ end
 
 if CHECK_GRADS then
   i = 1
-  batch = trainset[{{i * bsize, (i + 1) * bsize - 1}}]
+  batch = trainset:getBatch(bsize, i)
   -- print(batch)
   if CHECK_GRADS then
     --checkEncoderGrads(criterion, architecture, batch)
     checkTemplateGrads(criterion, architecture, batch, num_acrs)
   end
 else
-  num_train_batches = math.floor(trainset:size()/bsize)
+  -- num_train_batches = math.floor(trainset:size()/bsize)
   for epc = 1,500 do
     train(epc)
   end
 end
+
 
 parallel.close()
 
