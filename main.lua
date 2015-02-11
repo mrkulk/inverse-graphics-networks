@@ -19,6 +19,19 @@ require 'rmsprop'
 
 torch.manualSeed(1)
 
+cmd = torch.CmdLine()
+cmd:text()
+cmd:text()
+cmd:text('Build and test an inverse graphics deep network.')
+cmd:text()
+cmd:text('Options')
+cmd:option('-imagefolder','default','where to store image outputs from the network')
+cmd:text()
+
+params = cmd:parse(arg)
+os.execute("mkdir test_images/"..params.imagefolder)
+saved_image_path = "test_images/"..params.imagefolder.."/"
+
 CHECK_GRADS = false
 
 function getDigitSet(digit)
@@ -174,7 +187,7 @@ function saveACRs(step, model)
                 {y_location + 1, y_location + image_width}}] = acr.output[1]
   end
   acr_output = acr_output:reshape(1, acr_output:size()[1], acr_output:size()[2])
-  image.save("test_images/epoch_"..epc.."_step_"..step.."_acrs.png", acr_output)
+  image.save(saved_image_path.."epoch_"..epc.."_step_"..step.."_acrs.png", acr_output)
 end
 
 function saveTemplates(epc, step, model)
@@ -199,9 +212,8 @@ function saveTemplates(epc, step, model)
                 {y_location + 1, y_location + template_width}}] = bias.output[1]
   end
   bias_output = bias_output:reshape(1, bias_output:size()[1], bias_output:size()[2])
-  image.save("test_images/epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
+  image.save(saved_image_path.."epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
 end
-
 
 -- local temp = {}
 -- for ac=1,num_acrs do
@@ -245,8 +257,8 @@ function train(epc)
     if saveImages and i % 1 == 0 then
       local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
       saveTemplates(epc, i, architecture)
-      image.save("test_images/epoch_"..epc.."_step_"..i.."_recon.png", out)
-      image.save("test_images/epoch_"..epc.."_step_"..i.."_truth.png", batch[1])
+      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_recon.png", out)
+      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_truth.png", batch[1])
     end
 
     architecture:zeroGradParameters()
@@ -288,8 +300,6 @@ function train(epc)
 
       -- disp progress
       xlua.progress(i, trainset:nBatches(bsize))
-
-
     else
       print('Updating .. ')
       architecture:updateParameters(0.0001)
@@ -297,6 +307,8 @@ function train(epc)
       xlua.progress(i, trainset:nBatches(bsize))
 
     end
+    -- display progress
+    xlua.progress(i, trainset:nBatches(bsize))
   end
 end
 
