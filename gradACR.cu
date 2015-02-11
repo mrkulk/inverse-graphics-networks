@@ -45,6 +45,7 @@ __device__ double atomicAdd_double(double* address, double val)
 	return __longlong_as_double(old);
 }
 
+
 __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_output, double *cuda_pose, double *cuda_template, double *cuda_gradOutput, double *cuda_gradTemplate, double *cuda_gradPose, double *cuda_intensity)
 {
 	int i,j;
@@ -141,21 +142,29 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 
 	double cache14 = (cache10 - cache11 - cache12 + cache13);
 
-	atomicAdd_double(&(cuda_gradPose[bid*9]), 	  cache9 * output_x * cache_gradOutput_outputx_outputy );
-	atomicAdd_double(&(cuda_gradPose[bid*9 + 1]), cache9 * output_y * cache_gradOutput_outputx_outputy );
+
+	atomicAdd_double(&(cuda_gradPose[bid*9]), cache9 * double(output_x) * cache_gradOutput_outputx_outputy );
+
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 1]), cache9 * double(output_y) * cache_gradOutput_outputx_outputy );
+
 	atomicAdd_double(&(cuda_gradPose[bid*9 + 2]), cache9 * cache_gradOutput_outputx_outputy );
-	atomicAdd_double(&(cuda_gradPose[bid*9 + 3]), cache14 * output_x * cache_gradOutput_outputx_outputy );
-	atomicAdd_double(&(cuda_gradPose[bid*9 + 4]), cache14 * output_y * cache_gradOutput_outputx_outputy );
+
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 3]), cache14 * double(output_x) * cache_gradOutput_outputx_outputy );
+
+	atomicAdd_double(&(cuda_gradPose[bid*9 + 4]), cache14 * double(output_y) * cache_gradOutput_outputx_outputy );
+
 	atomicAdd_double(&(cuda_gradPose[bid*9 + 5]), cache14 * cache_gradOutput_outputx_outputy );	
 	
 	
-	//cuda_gradPose[bid*9] += cache13*output_x;
+	//cuda_gradPose[bid*9] = 66;
 	//cuda_gradPose[bid*9+1] = 2;
 	//cuda_gradPose[bid*9+2] = 3;
 	//cuda_gradPose[bid*9+3] = 4;
 	//cuda_gradPose[bid*9+4] = 5;
 	//cuda_gradPose[bid*9+5] = 6;
 
+	double tmp = cache9 * double(output_x) * cache_gradOutput_outputx_outputy;
+	if (tmp != 0) printf("bid: %d | %d %d %f \n", bid, output_x, output_y,tmp);
 
 	//printf("%d %d %f\n",output_x, output_y ,cache_gradOutput_outputx_outputy);
 	//if (output_x == 3 && output_y==4) {
@@ -220,6 +229,8 @@ extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *o
 
     cudaMemcpy(gradTemplate, cuda_gradTemplate, gradTemplate_size, cudaMemcpyDeviceToHost);
     cudaMemcpy(gradPose, cuda_gradPose, gradPose_size, cudaMemcpyDeviceToHost);
+
+	printf("POSE: %f\n", gradPose[0]);
     
     printf("CUDA status: %d\n", cudaDeviceSynchronize());
 }

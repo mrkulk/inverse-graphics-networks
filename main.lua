@@ -63,7 +63,7 @@ image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 30
+bsize = 10
 template_width = 11
 
 architecture = nn.Sequential()
@@ -71,7 +71,7 @@ encoder = nn.Sequential()
   encoder:add(nn.Reshape(image_width * image_width))
   encoder:add(nn.Linear(image_width * image_width,h1size))
   -- encoder:add(nn.PrintModule())
-  encoder:add(nn.Tanh())
+  encoder:add(nn.ReLU())
   encoder:add(nn.Linear(h1size, outsize))
 architecture:add(encoder)
 
@@ -117,20 +117,29 @@ for ii=1,num_acrs do
 end
 
 architecture:add(decoder)
-architecture:add(nn.Reshape(num_acrs, image_width,image_width))
 
+BCE = false
+if BCE then
+  architecture:add(nn.Reshape(num_acrs, image_width,image_width))
+  architecture:add(nn.Sum(2))
+  architecture:add(nn.Reshape(image_width*image_width))
+  architecture:add(nn.Sigmoid())
+  criterion = nn.BCECriterion()
+  criterion.sizeAverage = false
 
-architecture:add(nn.MulConstant(100))
-architecture:add(nn.Exp())
-architecture:add(nn.Sum(2))
--- architecture:add(nn.PrintModule("before log"))
-architecture:add(nn.Log())
--- architecture:add(nn.PrintModule("after log"))
+else
+  architecture:add(nn.Reshape(num_acrs, image_width,image_width))
 
-architecture:add(nn.MulConstant(1/100))
+  architecture:add(nn.MulConstant(100))
+  architecture:add(nn.Exp())
+  architecture:add(nn.Sum(2))
+  -- architecture:add(nn.PrintModule("before log"))
+  architecture:add(nn.Log())
+  -- architecture:add(nn.PrintModule("after log"))
 
-
-criterion = nn.MSECriterion()
+  architecture:add(nn.MulConstant(1/100))
+  criterion = nn.MSECriterion()
+end
 
 
 function test_network()
@@ -194,11 +203,6 @@ function saveTemplates(epc, step, model)
 end
 
 
--- local learning_rate = 0.000001
-local meta_learning_alpha = 0.00001
-local gamma = math.exp(3)
-local momentum = 0.95
-
 -- local temp = {}
 -- for ac=1,num_acrs do
 --   temp[ac] = torch.zeros(template_width*template_width)
@@ -212,11 +216,24 @@ rmsGradAverages = {
   encoderOutputBias = 1
 }
 
+config = {
+    learningRate = -0.001,
+    momentumDecay = 0.1,
+    updateDecay = 0.01
+}
+
+state = {}
+
 function train(epc)
   total_recon_error = 0
   for i = 1, trainset:nBatches(bsize) do
     batch = trainset:getBatch(bsize, i)--trainset[{{(i - 1) * bsize + 1, i * bsize}}]
-    recon_error = criterion:forward(architecture:forward(batch), batch)
+    if BCE then
+      obatch = batch:reshape(bsize, image_width*image_width)
+    else
+      obatch = batch
+    end
+    recon_error = criterion:forward(architecture:forward(batch), obatch)
     total_recon_error = total_recon_error + recon_error
 
     --print("epoch:" .. tostring(epc) .. " batch:"..i.."/" .. tostring(trainset:size()) .. " error: " .. recon_error )
@@ -233,7 +250,7 @@ function train(epc)
     end
 
     architecture:zeroGradParameters()
-    architecture:backward(batch, criterion:backward(architecture.output, batch))
+    architecture:backward(batch, criterion:backward(architecture.output, obatch))
 
     RMSPROP = true
 
@@ -241,32 +258,44 @@ function train(epc)
 
       -- Stochastic RMSProp on separate layers
       local encoder_hidden = architecture.modules[1].modules[2]
-      encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt)
-      encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias)
+      encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt,0.05)
+      encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias,0.05)
 
       local encoder_output = architecture.modules[1].modules[4]
-      encoder_output.weight = rmsprop(encoder_output.weight, encoder_output.gradWeight, rmsGradAverages.encoderOutputWt)
-      encoder_output.bias = rmsprop(encoder_output.bias, encoder_output.gradBias, rmsGradAverages.encoderOutputBias)
+      encoder_output.weight = rmsprop(encoder_output.weight, encoder_output.gradWeight, rmsGradAverages.encoderOutputWt,0.05)
+      encoder_output.bias = rmsprop(encoder_output.bias, encoder_output.gradBias, rmsGradAverages.encoderOutputBias,0.05)
 
       for ac = 1,num_acrs do
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-        ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
+        prev_bias = ac_bias.bias:clone()
+        ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac], 0.1)
+        print('ac#', ac,  ' diff:', torch.norm(prev_bias - ac_bias.bias), torch.sum(torch.abs(ac_bias.gradBias)))
       end
+
+      -- local encoder_hidden = architecture.modules[1].modules[2]
+      -- encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt.config)
+      -- encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias.config)
+
+      -- local encoder_output = architecture.modules[1].modules[4]
+      -- encoder_output.weight = rmsprop(encoder_output.weight, encoder_output.gradWeight, rmsGradAverages.encoderOutputWt)
+      -- encoder_output.bias = rmsprop(encoder_output.bias, encoder_output.gradBias, rmsGradAverages.encoderOutputBias)
+
+      -- for ac = 1,num_acrs do
+      --   local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
+      --   ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
+      --   print(ac_bias.gradBias)
+      -- end
+
       -- disp progress
       xlua.progress(i, trainset:nBatches(bsize))
 
-      --print('encoderHidden grad sum:', torch.sum(encoder_hidden.gradWeight), torch.sum(encoder_hidden.gradBias))
-      --print('encoderOut grad sum:', torch.sum(encoder_output.gradWeight), torch.sum(encoder_output.gradBias))
 
-      -- testOut = architecture:forward(trainset[{{1, 30}}])
-      -- image.save("test_images/step_"..i.."_fixed.png", torch.reshape(testOut[1], 1, image_width, image_width))
     else
       print('Updating .. ')
       architecture:updateParameters(0.0001)
-      for ac = 1,num_acrs do
-        local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-        print(torch.sum(ac_bias.gradBias))
-      end
+      -- disp progress
+      xlua.progress(i, trainset:nBatches(bsize))
+
     end
   end
 end

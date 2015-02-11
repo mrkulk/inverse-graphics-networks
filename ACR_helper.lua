@@ -4,7 +4,7 @@ local ACR_helper = {}
 require("sys")
 
 
-function ACR_helper:updateGradPoseAtLocation(output_x, output_y, template_x_after_offset, template_y_after_offset, x_low, x_high, y_low, y_high, template, pose, gradPose, gradOutput, intensity, scale)
+function ACR_helper:updateGradPoseAtLocation(batchIndex, output_x, output_y, template_x_after_offset, template_y_after_offset, x_low, x_high, y_low, y_high, template, pose, gradPose, gradOutput, intensity, scale)
   scale = scale or 1
   local template_val_xhigh_yhigh = ACR_helper:getSingleTemplateValue(template, x_high, y_high) * intensity
   local template_val_xhigh_ylow = ACR_helper:getSingleTemplateValue(template, x_high, y_low) * intensity
@@ -51,6 +51,9 @@ function ACR_helper:updateGradPoseAtLocation(output_x, output_y, template_x_afte
 
   gradPose[{2,3}] = gradPose[{2,3}] + scale * cache14 * gradOutput[{output_x,output_y}]
 
+  if (cache9 * output_x * gradOutput[{output_x,output_y}]) ~= 0 then
+    print('bid:',batchIndex, output_x, output_y, cache9 * output_x * gradOutput[{output_x,output_y}])
+  end
   -- if torch.cmul( cache14 * output_x, gradOutput[{{},output_x,output_y}])[1] ~= 0 then
 
   --   -- print("output coords with gradPose(1,1) grads:", output_x, output_y)
@@ -187,7 +190,7 @@ function ACR_helper:gradHelper(mode, start_x, start_y, endhere_x, endhere_y, out
         --   -- y_high[batchIndex] = y_high[batchIndex] + 1e-1
         -- end
 
-        ACR_helper:updateGradPoseAtLocation(output_x,
+        ACR_helper:updateGradPoseAtLocation(batchIndex, output_x,
                                             output_y,
                                             template_x_after_offset[batchIndex],
                                             template_y_after_offset[batchIndex],

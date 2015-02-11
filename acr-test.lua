@@ -63,7 +63,7 @@ back = net:backward(data, df_do)
 --------------------------------------------------------------------------
 -------------------test gradients for template----------------------------
 --------------------------------------------------------------------------
-if true then
+if false then
 	-- print('pred:',outputs)
 	-- print('target:', targets)
 
