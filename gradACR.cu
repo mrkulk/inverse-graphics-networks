@@ -50,11 +50,12 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 {
 	int i,j;
 
+
+
 	//printf("block: (%d %d %d) || grid: (%d %d %d)\n", threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
 	unsigned int bid = threadIdx.z; //index of image in batch
 	unsigned int output_x = blockIdx.x + 1; //critical -- adding 1 due to lua terminology
 	unsigned int output_y = blockIdx.y + 1; //critical -- adding 1 due to lua terminology
-
 
 	unsigned int output_coords[3];
 	output_coords[0]=output_x; output_coords[1]=output_y; output_coords[2]=1;
@@ -163,8 +164,10 @@ __global__ void getgradient(int imwidth, int tdim, int bsize, double *cuda_outpu
 	//cuda_gradPose[bid*9+4] = 5;
 	//cuda_gradPose[bid*9+5] = 6;
 
-	double tmp = cache9 * double(output_x) * cache_gradOutput_outputx_outputy;
-	if (tmp != 0) printf("bid: %d | %d %d %f \n", bid, output_x, output_y,tmp);
+	//double tmp = cache9 * double(output_x) * cache_gradOutput_outputx_outputy;
+	//if (tmp != 0 && bid==0) printf("bid: %d | %d %d %f \n", bid, output_x, output_y,tmp);
+
+	//printf("%d %d\n", output_x, output_y);
 
 	//printf("%d %d %f\n",output_x, output_y ,cache_gradOutput_outputx_outputy);
 	//if (output_x == 3 && output_y==4) {
@@ -219,7 +222,7 @@ extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *o
 	cudaMemset((void **)&cuda_gradPose, 0, gradPose_size);
 	
 	//setup GPU grid and block structure
-	dim3 grid; grid.x=32; grid.y = 32;
+	dim3 grid; grid.x=imwidth; grid.y = imwidth;
 	//dim3 grid; grid.x=3; grid.y = 3;
 
 	dim3 block; block.x=1; block.y=1; block.z=bsize;
@@ -229,8 +232,6 @@ extern "C" void get_gradACR_gradient(int imwidth, int tdim, int bsize, double *o
 
     cudaMemcpy(gradTemplate, cuda_gradTemplate, gradTemplate_size, cudaMemcpyDeviceToHost);
     cudaMemcpy(gradPose, cuda_gradPose, gradPose_size, cudaMemcpyDeviceToHost);
-
-	printf("POSE: %f\n", gradPose[0]);
     
     printf("CUDA status: %d\n", cudaDeviceSynchronize());
 }
