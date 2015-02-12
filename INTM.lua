@@ -146,6 +146,7 @@ function INTM:updateGradInput(input, gradOutput)
     self.gradInput[i][7] = gradOutput[{i,10}] -- intensity is unchanged in this module
   end
 
-  --print("intm gradinput", self.gradInput:sum())
+  -- print("intm gradinput", self.gradInput:sum())
+
   return self.gradInput
 end

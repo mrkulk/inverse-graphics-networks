@@ -17,7 +17,7 @@ require 'checkgradients'
 require 'xlua'
 require 'rmsprop'
 
-torch.manualSeed(1)
+torch.manualSeed(10)
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -55,7 +55,9 @@ function getDigitSet(digit)
         return tbl._raw[tbl._indices[key]][1][1]
       end
     end})
+  -- function digitSet:size() return 1 end 
   function digitSet:size() return #self._indices end
+
   function digitSet:getBatch(batch_size, index)
     if batch_size * index > self:size() then
       error("Batch index too high! Not that many samples.")
@@ -71,21 +73,21 @@ end
 trainset = getDigitSet(1)
 
 --number of acr's
-num_acrs = 9
+num_acrs = 1
 image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 10
+bsize = 50
 template_width = 11
 
 architecture = nn.Sequential()
 encoder = nn.Sequential()
   encoder:add(nn.Reshape(image_width * image_width))
   encoder:add(nn.Linear(image_width * image_width,h1size))
-  -- encoder:add(nn.PrintModule())
   encoder:add(nn.ReLU())
   encoder:add(nn.Linear(h1size, outsize))
+
 architecture:add(encoder)
 
 architecture:add(nn.Reshape(num_acrs,7))
@@ -118,6 +120,7 @@ for ii=1,num_acrs do
         intensityWrapper:add(nn.AddConstant(1))
         intensityWrapper:add(nn.Log())
         intensityWrapper:add(nn.Reshape(bsize, 1))
+        -- intensityWrapper:add(nn.PrintModule('INTENSITY MOD'))
       splitter:add(intensityWrapper)
     INTMWrapper:add(splitter)
     INTMWrapper:add(nn.INTM(bsize, 7,intm_out_dim))
@@ -131,14 +134,14 @@ end
 
 architecture:add(decoder)
 
-BCE = false
+BCE = true
 if BCE then
   architecture:add(nn.Reshape(num_acrs, image_width,image_width))
   architecture:add(nn.Sum(2))
   architecture:add(nn.Reshape(image_width*image_width))
   architecture:add(nn.Sigmoid())
   criterion = nn.BCECriterion()
-  criterion.sizeAverage = false
+  -- criterion.sizeAverage = false
 
 else
   architecture:add(nn.Reshape(num_acrs, image_width,image_width))
@@ -152,7 +155,41 @@ else
 
   architecture:add(nn.MulConstant(1/100))
   criterion = nn.MSECriterion()
+  -- criterion.sizeAverage = false
 end
+
+
+rmsGradAverages = {
+  templates = torch.ones(num_acrs),
+  encoderHiddenWt = 1,
+  encoderOutputWt = torch.ones(7),
+  encoderHiddenBias = 1,
+  encoderOutputBias = torch.ones(7)
+}
+
+config = {
+    learningRate = -0.001,
+    momentumDecay = 0.1,
+    updateDecay = 0.01
+}
+
+--encoder meta learning rate
+ENC_LR1 = 1
+
+affine = {
+  learningRates = {
+    0.1, --t1    [1]
+    0.1, --t2    [2]
+    0.01, --s1   [3]
+    0.01, --s2   [4]
+    0.1, --z     [5]
+    0.1, --theta [6]
+    1 --intensity[7]
+  }
+}
+ACR_MLR = 10000
+
+state = {}
 
 
 function test_network()
@@ -215,26 +252,6 @@ function saveTemplates(epc, step, model)
   image.save(saved_image_path.."epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
 end
 
--- local temp = {}
--- for ac=1,num_acrs do
---   temp[ac] = torch.zeros(template_width*template_width)
--- end
-
-rmsGradAverages = {
-  templates = torch.ones(num_acrs),
-  encoderHiddenWt = 1,
-  encoderOutputWt = 1,
-  encoderHiddenBias = 1,
-  encoderOutputBias = 1
-}
-
-config = {
-    learningRate = -0.001,
-    momentumDecay = 0.1,
-    updateDecay = 0.01
-}
-
-state = {}
 
 function train(epc)
   total_recon_error = 0
@@ -253,50 +270,49 @@ function train(epc)
     --print(architecture:forward(batch))
     -- print(architecture.output)
 
-    saveImages = true
-    if saveImages and i % 1 == 0 then
-      local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
-      saveTemplates(epc, i, architecture)
-      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_recon.png", out)
-      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_truth.png", batch[1])
-    end
-
     architecture:zeroGradParameters()
     architecture:backward(batch, criterion:backward(architecture.output, obatch))
 
     RMSPROP = true
 
     if RMSPROP == true then
+      
 
       -- Stochastic RMSProp on separate layers
       local encoder_hidden = architecture.modules[1].modules[2]
-      encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt,0.05)
-      encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias,0.05)
+      prev = encoder_hidden.weight:clone() 
+      -- print(torch.sum(encoder_hidden.gradWeight))
+      encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt,ENC_LR1)
+      print('enc_hidden weight diff:', torch.norm(prev - encoder_hidden.weight), torch.sum(torch.abs(encoder_hidden.gradWeight)))
+
+      -- prev = encoder_hidden.bias:clone() 
+      -- print(torch.sum(encoder_hidden.gradBias))
+      encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias,ENC_LR1)
+      -- print('enc_hidden bias diff:', torch.norm(prev - encoder_hidden.bias), torch.sum(torch.abs(encoder_hidden.gradBias)))
+
 
       local encoder_output = architecture.modules[1].modules[4]
-      encoder_output.weight = rmsprop(encoder_output.weight, encoder_output.gradWeight, rmsGradAverages.encoderOutputWt,0.05)
-      encoder_output.bias = rmsprop(encoder_output.bias, encoder_output.gradBias, rmsGradAverages.encoderOutputBias,0.05)
+      for ii = 1,num_acrs*7 do    
+        prev = encoder_output.weight[{ii,{}}]:clone()
+        -- print(torch.sum(encoder_output.gradWeight))
+        encoder_output.weight[{ii,{}}] = rmsprop(encoder_output.weight[{ii,{}}], encoder_output.gradWeight[{ii,{}}], rmsGradAverages.encoderOutputWt[math.fmod(ii,7)+1], affine.learningRates[math.fmod(ii,7)+1])
+        --print('enc_output weight diff:', torch.norm(prev - encoder_output.weight), torch.sum(torch.abs(encoder_output.gradWeight)))
+        -- prev = encoder_output.bias:clone()
+        -- print(torch.sum(encoder_output.gradBias))
+        encoder_output.bias[ii] = rmsprop(encoder_output.bias[ii], encoder_output.gradBias[ii], rmsGradAverages.encoderOutputBias[math.fmod(ii,7)+1],affine.learningRates[math.fmod(ii,7)+1])
+        --print('enc_output bias diff:', torch.norm(prev - encoder_output.bias), torch.sum(torch.abs(encoder_output.gradBias)))
+        print('ID', math.fmod(ii,7)+1, 'val:',encoder_output.output[1][ii], ' enc_output bias diff:', torch.norm(prev - encoder_output.weight[{ii,{}}]), torch.sum(torch.abs(encoder_output.gradWeight[{ii,{}}] )))
+      end
+
 
       for ac = 1,num_acrs do
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
         prev_bias = ac_bias.bias:clone()
-        ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac], 0.1)
+        ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac], ACR_MLR) --1 - MSE 5-BCE
         print('ac#', ac,  ' diff:', torch.norm(prev_bias - ac_bias.bias), torch.sum(torch.abs(ac_bias.gradBias)))
       end
 
-      -- local encoder_hidden = architecture.modules[1].modules[2]
-      -- encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt.config)
-      -- encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias.config)
 
-      -- local encoder_output = architecture.modules[1].modules[4]
-      -- encoder_output.weight = rmsprop(encoder_output.weight, encoder_output.gradWeight, rmsGradAverages.encoderOutputWt)
-      -- encoder_output.bias = rmsprop(encoder_output.bias, encoder_output.gradBias, rmsGradAverages.encoderOutputBias)
-
-      -- for ac = 1,num_acrs do
-      --   local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
-      --   ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac])
-      --   print(ac_bias.gradBias)
-      -- end
 
       -- disp progress
       xlua.progress(i, trainset:nBatches(bsize))
@@ -307,6 +323,18 @@ function train(epc)
       xlua.progress(i, trainset:nBatches(bsize))
 
     end
+
+    saveImages = true
+    if saveImages and i % 1 == 0 then
+      test_batch = trainset:getBatch(bsize, 1)
+      architecture:forward(test_batch)
+      local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
+      
+      saveTemplates(epc, i, architecture)
+      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_recon.png", out)
+      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_truth.png", test_batch[1])-- batch[1])
+    end
+
     -- display progress
     xlua.progress(i, trainset:nBatches(bsize))
   end
@@ -322,7 +350,7 @@ if CHECK_GRADS then
   end
 else
   -- num_train_batches = math.floor(trainset:size()/bsize)
-  for epc = 1,500 do
+  for epc = 1,5000 do
     train(epc)
   end
 end
