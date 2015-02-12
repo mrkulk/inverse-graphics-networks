@@ -1,16 +1,33 @@
 --[[ An implementation of RMSprop ]]
 
 function rmsprop( x, dfdx, gradAverage, meta_learning_alpha)
+	local flag =0
+	if torch.type(x) == torch.type(1) then
+		newx = torch.zeros(1)
+		newx[1] = x; x = newx
+		flag = 1
 
-	gradAverageArr=torch.zeros(3)
-	gamma = {math.exp(1), math.exp(3),math.exp(6)} 
-	for i=1,3 do
+		newfddx = torch.zeros(1)
+		newfddx[1] = dfdx; dfdx = newfddx
+	end
+
+	gradAverageArr=torch.zeros(2)
+	gamma = {math.exp(3),math.exp(6)} 
+	for i=1,2 do
     	gradAverageArr[i] = 1/gamma[i] * torch.pow(dfdx:norm(), 2) + (1-(1/gamma[i]))*gradAverage
     end
     gradAverage = torch.max(gradAverageArr)
+    -- print('RATIO', meta_learning_alpha / gradAverage)
+    -- print(dfdx:norm())
+    -- print('\n')
     x = x - (dfdx*meta_learning_alpha / gradAverage)
-    return x
 
+    -- print('QQ', x)
+    if flag == 1 then
+    	return x[1]
+    else
+    	return x
+    end
 end
 
 

@@ -189,6 +189,7 @@ function ACR:updateGradInput(input, gradOutput)
   end
 
   self.gradInput = {self.gradTemplate, self.finalgradPose}
+  -- print('ACR GRAD POSE', torch.sum(intensity))
   return self.gradInput
 end
 
