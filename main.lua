@@ -149,7 +149,7 @@ for ii=1,num_acrs do
         -- intensityWrapper:add(nn.PrintModule('INTENSITY MOD'))
       splitter:add(intensityWrapper)
     INTMWrapper:add(splitter)
-    INTMWrapper:add(nn.INTM(bsize, 7,intm_out_dim))
+    INTMWrapper:add(nn.INTM(bsize, 7, intm_out_dim))
     INTMWrapper:add(nn.INTMReg())
   acr_in:add(INTMWrapper)
   acr_wrapper:add(acr_in)
@@ -178,11 +178,11 @@ else
   -- architecture:add(nn.Log())
   -- architecture:add(nn.MulConstant(1/100))
 
-  architecture:add(nn.PrintModule("beforeOutput"))
+  -- architecture:add(nn.PrintModule("beforeOutput"))
   architecture:add(nn.MulConstant(100))
   architecture:add(nn.LogSumExp())
   architecture:add(nn.MulConstant(1/100))
-  architecture:add(nn.PrintModule("afterOutput"))
+  -- architecture:add(nn.PrintModule("afterOutput"))
   criterion = nn.MSECriterion()
   criterion.sizeAverage = false
 end
@@ -217,7 +217,7 @@ affine = {
   }
 }
 -- ACR_MLR = 10000
-ACR_MLR = 500
+ACR_MLR = 1000
 
 state = {}
 
@@ -320,14 +320,15 @@ function train(epc)
       local encoder_hidden = architecture.modules[1].modules[2]
       prev = encoder_hidden.weight:clone()
       -- print(torch.sum(encoder_hidden.gradWeight))
+
+
       encoder_hidden.weight = rmsprop(encoder_hidden.weight, encoder_hidden.gradWeight, rmsGradAverages.encoderHiddenWt,ENC_LR1)
-      print('enc_hidden weight diff:', torch.norm(prev - encoder_hidden.weight), torch.sum(torch.abs(encoder_hidden.gradWeight)))
+      -- print('enc_hidden weight diff:', torch.norm(prev - encoder_hidden.weight), torch.sum(torch.abs(encoder_hidden.gradWeight)))
 
       -- prev = encoder_hidden.bias:clone()
       -- print(torch.sum(encoder_hidden.gradBias))
       encoder_hidden.bias = rmsprop(encoder_hidden.bias, encoder_hidden.gradBias, rmsGradAverages.encoderHiddenBias,ENC_LR1)
       -- print('enc_hidden bias diff:', torch.norm(prev - encoder_hidden.bias), torch.sum(torch.abs(encoder_hidden.gradBias)))
-
 
       local encoder_output = architecture.modules[1].modules[4]
       for ii = 1,num_acrs*7 do
@@ -346,13 +347,14 @@ function train(epc)
                   encoder_output.gradWeight[{ii,{}}]:norm(1) )
       end
 
-
+      -- experimenting with not updating ACRs
       for ac = 1,num_acrs do
         local ac_bias = architecture.modules[3].modules[ac].modules[3].modules[1].modules[1]
         prev_bias = ac_bias.bias:clone()
         ac_bias.bias = rmsprop(ac_bias.bias, ac_bias.gradBias, rmsGradAverages.templates[ac], ACR_MLR) --1 - MSE 5-BCE
         print('ac#', ac,  ' diff:', torch.norm(prev_bias - ac_bias.bias), torch.sum(torch.abs(ac_bias.gradBias)))
       end
+      --]]
 
 
 

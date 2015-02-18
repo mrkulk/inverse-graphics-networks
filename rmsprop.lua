@@ -11,9 +11,6 @@ function rmsprop( x, dfdx, gradAverage, meta_learning_alpha)
 		newfddx[1] = dfdx; dfdx = newfddx
 	end
 
-    print("rms update top", dfdx:sum())
-    print("gradAverage", gradAverage)
-
     gradAverageArr=torch.zeros(2)
     gamma = {math.exp(3),math.exp(6)}
     for i=1,2 do
@@ -25,7 +22,7 @@ function rmsprop( x, dfdx, gradAverage, meta_learning_alpha)
     -- print('RATIO', meta_learning_alpha / gradAverage)
     -- print(dfdx:norm())
     -- print('\n')
-    x = x - (dfdx*meta_learning_alpha / (gradAverage^2))
+    x = x - (dfdx*meta_learning_alpha / (gradAverage))
 
     -- print('QQ', x)
     if flag == 1 then

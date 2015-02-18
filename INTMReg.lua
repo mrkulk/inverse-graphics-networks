@@ -1,7 +1,7 @@
 local INTMReg, parent = torch.class('nn.INTMReg', 'nn.Module')
 
 function INTMReg:__init()
-  self.regStrength = 1000
+  self.regStrength = 1e2
 end
 
 function INTMReg:updateOutput(input)
@@ -14,6 +14,7 @@ function INTMReg:updateGradInput(input, gradOutput)
   local intensity = input[{{}, 10}]
 
   local optimalDeterminant = 0.1182
+  -- local optimalDeterminant = 1
 
   local A11 = geoPose[{{}, 1}]
   local A12 = geoPose[{{}, 2}]
@@ -78,11 +79,16 @@ function INTMReg:updateGradInput(input, gradOutput)
                               - torch.cmul(geoPose[{indices, 2}], geoPose[{indices, 4}])
   end
 
-  -- -- don't regularize the intensity
-  -- gradDetInput[{{}, 10}] = 0
-  self.gradInput = gradOutput + gradDetInput * self.regStrength
-  print("intm-REG determinant", determinant)
-  print("intm-REG gradinput", gradDetInput:sum())
+  self.gradInput = gradOutput - gradDetInput * self.regStrength
+  print("intm-REG determinant", determinant[1])
+  print("intm-REG reg amount", (gradDetInput * self.regStrength):sum())
 
   return self.gradInput
 end
+
+
+
+
+
+
+
