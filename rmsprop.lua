@@ -11,16 +11,21 @@ function rmsprop( x, dfdx, gradAverage, meta_learning_alpha)
 		newfddx[1] = dfdx; dfdx = newfddx
 	end
 
-	gradAverageArr=torch.zeros(2)
-	gamma = {math.exp(3),math.exp(6)} 
-	for i=1,2 do
-    	gradAverageArr[i] = 1/gamma[i] * torch.pow(dfdx:norm(), 2) + (1-(1/gamma[i]))*gradAverage
+    print("rms update top", dfdx:sum())
+    print("gradAverage", gradAverage)
+
+    gradAverageArr=torch.zeros(2)
+    gamma = {math.exp(3),math.exp(6)}
+    for i=1,2 do
+        gradAverageArr[i] = 1/gamma[i] * torch.pow(dfdx:norm(), 2) + (1-(1/gamma[i]))*gradAverage
     end
     gradAverage = torch.max(gradAverageArr)
+    gradAverage = torch.clamp(torch.Tensor({gradAverage}), 1e-5, 1e20)[1]
+
     -- print('RATIO', meta_learning_alpha / gradAverage)
     -- print(dfdx:norm())
     -- print('\n')
-    x = x - (dfdx*meta_learning_alpha / gradAverage)
+    x = x - (dfdx*meta_learning_alpha / (gradAverage^2))
 
     -- print('QQ', x)
     if flag == 1 then
@@ -43,11 +48,11 @@ end
 --    state.evalCounter = state.evalCounter or 0
 --    state.m = state.m or torch.Tensor():typeAs(dfdx):resizeAs(dfdx):fill(0)
 --    state.v = state.v or torch.Tensor():typeAs(dfdx):resizeAs(dfdx):fill(0)
-   
+
 --    -- Decay term
 --    state.m:mul(1 - b1)
 
---    -- New term 
+--    -- New term
 --    state.momentum_dfdx = state.momentum_dfdx or torch.Tensor():typeAs(dfdx):resizeAs(dfdx)
 --    state.momentum_dfdx:copy(dfdx)
 

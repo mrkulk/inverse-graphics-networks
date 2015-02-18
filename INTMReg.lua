@@ -1,7 +1,7 @@
 local INTMReg, parent = torch.class('nn.INTMReg', 'nn.Module')
 
 function INTMReg:__init()
-  self.regStrength = 1e1
+  self.regStrength = 1000
 end
 
 function INTMReg:updateOutput(input)
@@ -45,7 +45,7 @@ function INTMReg:updateGradInput(input, gradOutput)
 --]]
 
 
-  local diff = determinant - optimalDeterminant
+  local diff = (determinant - optimalDeterminant) * -1
   local indices = {}
   for i = 1, diff:size()[1] do
     if diff[i] > 0 then
@@ -81,7 +81,8 @@ function INTMReg:updateGradInput(input, gradOutput)
   -- -- don't regularize the intensity
   -- gradDetInput[{{}, 10}] = 0
   self.gradInput = gradOutput + gradDetInput * self.regStrength
-  -- print("intm-REG gradinput", self.gradInput:sum())
+  print("intm-REG determinant", determinant)
+  print("intm-REG gradinput", gradDetInput:sum())
 
   return self.gradInput
 end

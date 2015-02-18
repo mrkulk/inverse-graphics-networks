@@ -16,8 +16,9 @@ require 'INTMReg'
 require 'checkgradients'
 require 'xlua'
 require 'rmsprop'
+require 'LogSumExp'
 
-torch.manualSeed(10)
+torch.manualSeed(9)
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -25,7 +26,7 @@ cmd:text()
 cmd:text('Build and test an inverse graphics deep network.')
 cmd:text()
 cmd:text('Options')
-cmd:option('-imagefolder','default','where to store image outputs from the network')
+cmd:option('--imagefolder','default','where to store image outputs from the network')
 cmd:text()
 
 params = cmd:parse(arg)
@@ -55,8 +56,8 @@ function getDigitSet(digit)
         return tbl._raw[tbl._indices[key]][1][1]
       end
     end})
-  -- function digitSet:size() return 1 end
-  function digitSet:size() return #self._indices end
+  function digitSet:size() return 1 end
+  -- function digitSet:size() return #self._indices end
 
   function digitSet:getBatch(batch_size, index)
     if batch_size * index > self:size() then
@@ -70,15 +71,15 @@ function getDigitSet(digit)
   return digitSet
 end
 
-trainset = getDigitSet(1)
+trainset = getDigitSet(7)
 
 --number of acr's
-num_acrs = 1
+num_acrs = 9
 image_width = 32
 h1size = 500
 outsize = 7*num_acrs --affine variables
 intm_out_dim = 10
-bsize = 50
+bsize = 1
 template_width = 11
 
 architecture = nn.Sequential()
@@ -104,10 +105,12 @@ for ii=1,num_acrs do
   local acr_in = nn.ParallelTable()
   local biasWrapper = nn.Sequential()
     biasWrapper:add(nn.Bias(bsize, template_width*template_width))
-    --biasWrapper:add(nn.PrintModule("PostBias"))
-    biasWrapper:add(nn.Exp())
-    biasWrapper:add(nn.AddConstant(1))
-    biasWrapper:add(nn.Log())
+
+    -- biasWrapper:add(nn.Exp())
+    -- biasWrapper:add(nn.AddConstant(1))
+    -- biasWrapper:add(nn.Log())
+
+    biasWrapper:add(nn.Sigmoid())
   acr_in:add(biasWrapper)
 
   local INTMWrapper = nn.Sequential()
@@ -115,10 +118,33 @@ for ii=1,num_acrs do
       for i = 1,6 do
         splitter:add(nn.Reshape(bsize, 1))
       end
+
+      -- local s1Wrapper = nn.Sequential()
+      --   s1Wrapper:add(nn.PrintModule("beforeS1Reg"))
+      --   s1Wrapper:add(nn.Exp())
+      --   s1Wrapper:add(nn.AddConstant(1))
+      --   s1Wrapper:add(nn.Log())
+      --   s1Wrapper:add(nn.Reshape(bsize, 1))
+      -- splitter:add(s1Wrapper)
+      -- local s2Wrapper = nn.Sequential()
+      --   s2Wrapper:add(nn.Exp())
+      --   s2Wrapper:add(nn.AddConstant(1))
+      --   s2Wrapper:add(nn.Log())
+      --   s2Wrapper:add(nn.Reshape(bsize, 1))
+      -- splitter:add(s2Wrapper)
+
+      -- for i = 1,2 do
+      --   splitter:add(nn.Reshape(bsize, 1))
+      -- end
+
       local intensityWrapper = nn.Sequential()
         intensityWrapper:add(nn.Exp())
         intensityWrapper:add(nn.AddConstant(1))
         intensityWrapper:add(nn.Log())
+
+        -- intensityWrapper:add(nn.Sigmoid())
+        -- intensityWrapper:add(nn.AddConstant(1))
+
         intensityWrapper:add(nn.Reshape(bsize, 1))
         -- intensityWrapper:add(nn.PrintModule('INTENSITY MOD'))
       splitter:add(intensityWrapper)
@@ -134,7 +160,7 @@ end
 
 architecture:add(decoder)
 
-BCE = true
+BCE = false
 if BCE then
   architecture:add(nn.Reshape(num_acrs, image_width,image_width))
   architecture:add(nn.Sum(2))
@@ -146,16 +172,19 @@ if BCE then
 else
   architecture:add(nn.Reshape(num_acrs, image_width,image_width))
 
-  architecture:add(nn.MulConstant(100))
-  architecture:add(nn.Exp())
-  architecture:add(nn.Sum(2))
-  -- architecture:add(nn.PrintModule("before log"))
-  architecture:add(nn.Log())
-  -- architecture:add(nn.PrintModule("after log"))
+  -- architecture:add(nn.MulConstant(100))
+  -- architecture:add(nn.Exp())
+  -- architecture:add(nn.Sum(2))
+  -- architecture:add(nn.Log())
+  -- architecture:add(nn.MulConstant(1/100))
 
+  architecture:add(nn.PrintModule("beforeOutput"))
+  architecture:add(nn.MulConstant(100))
+  architecture:add(nn.LogSumExp())
   architecture:add(nn.MulConstant(1/100))
+  architecture:add(nn.PrintModule("afterOutput"))
   criterion = nn.MSECriterion()
-  -- criterion.sizeAverage = false
+  criterion.sizeAverage = false
 end
 
 
@@ -167,30 +196,30 @@ rmsGradAverages = {
   encoderOutputBias = torch.ones(7)
 }
 
-config = {
-    learningRate = -0.001,
-    momentumDecay = 0.1,
-    updateDecay = 0.01
-}
+-- config = {
+--     learningRate = -0.001,
+--     momentumDecay = 0.1,
+--     updateDecay = 0.01
+-- }
 
 --encoder meta learning rate
-ENC_LR1 = 1
+ENC_LR1 = 0.1
 
 affine = {
   learningRates = {
-    0.1, --t1    [1]
-    0.1, --t2    [2]
-    0.01, --s1   [3]
-    0.01, --s2   [4]
-    0.1, --z     [5]
-    0.1, --theta [6]
-    1 --intensity[7]
+    0.001, --t1    [1]
+    0.001, --t2    [2]
+    0.001, --s1   [3]
+    0.001, --s2   [4]
+    0.001, --z     [5]
+    0.001, --theta [6]
+    0.001 --intensity[7]
   }
 }
-ACR_MLR = 10000
+-- ACR_MLR = 10000
+ACR_MLR = 500
 
 state = {}
-
 
 function test_network()
   for i = 1, 10 do
@@ -252,6 +281,7 @@ function saveTemplates(epc, step, model)
   image.save(image_save_path.."epoch_"..epc.."_step_"..step.."_templates.png", bias_output)
 end
 
+pose_names = {"t1", "t2", "s1", "s2", "z", "theta", "inten"}
 
 function train(epc)
   total_recon_error = 0
@@ -301,15 +331,19 @@ function train(epc)
 
       local encoder_output = architecture.modules[1].modules[4]
       for ii = 1,num_acrs*7 do
+        local affineIndex = math.fmod(ii-1,7) + 1
         prev = encoder_output.weight[{ii,{}}]:clone()
         -- print(torch.sum(encoder_output.gradWeight))
-        encoder_output.weight[{ii,{}}] = rmsprop(encoder_output.weight[{ii,{}}], encoder_output.gradWeight[{ii,{}}], rmsGradAverages.encoderOutputWt[math.fmod(ii,7)+1], affine.learningRates[math.fmod(ii,7)+1])
+        encoder_output.weight[{ii,{}}] = rmsprop(encoder_output.weight[{ii,{}}], encoder_output.gradWeight[{ii,{}}], rmsGradAverages.encoderOutputWt[affineIndex], affine.learningRates[affineIndex])
         --print('enc_output weight diff:', torch.norm(prev - encoder_output.weight), torch.sum(torch.abs(encoder_output.gradWeight)))
         -- prev = encoder_output.bias:clone()
         -- print(torch.sum(encoder_output.gradBias))
-        encoder_output.bias[ii] = rmsprop(encoder_output.bias[ii], encoder_output.gradBias[ii], rmsGradAverages.encoderOutputBias[math.fmod(ii,7)+1],affine.learningRates[math.fmod(ii,7)+1])
+        encoder_output.bias[ii] = rmsprop(encoder_output.bias[ii], encoder_output.gradBias[ii], rmsGradAverages.encoderOutputBias[affineIndex],affine.learningRates[affineIndex])
         --print('enc_output bias diff:', torch.norm(prev - encoder_output.bias), torch.sum(torch.abs(encoder_output.gradBias)))
-        print('ID', math.fmod(ii,7)+1, 'val:',encoder_output.output[1][ii], ' enc_output bias diff:', torch.norm(prev - encoder_output.weight[{ii,{}}]), torch.sum(torch.abs(encoder_output.gradWeight[{ii,{}}] )))
+        print('ID', pose_names[affineIndex],
+              'val:',encoder_output.output[1][ii],
+              ' enc_output weight diff:', torch.norm(prev - encoder_output.weight[{ii,{}}]),
+                  encoder_output.gradWeight[{ii,{}}]:norm(1) )
       end
 
 
@@ -323,7 +357,7 @@ function train(epc)
 
 
       -- disp progress
-      xlua.progress(i, trainset:nBatches(bsize))
+      -- xlua.progress(i, trainset:nBatches(bsize))
     else
       print('Updating .. ')
       architecture:updateParameters(0.0001)
@@ -336,11 +370,11 @@ function train(epc)
     if saveImages and i % 1 == 0 then
       test_batch = trainset:getBatch(bsize, 1)
       architecture:forward(test_batch)
-      local out = torch.reshape(architecture.output[1], 1,image_width,image_width)
+      local out = torch.reshape(architecture.output[1], 1 ,image_width,image_width)
 
       saveTemplates(epc, i, architecture)
-      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_recon.png", out)
-      image.save(saved_image_path.."epoch_"..epc.."_step_"..i.."_truth.png", test_batch[1])-- batch[1])
+      image.save(image_save_path.."epoch_"..epc.."_step_"..i.."_recon.png", out)
+      image.save(image_save_path.."epoch_"..epc.."_step_"..i.."_truth.png", test_batch[1])-- batch[1])
     end
 
     -- display progress

@@ -88,7 +88,8 @@ function ACR:updateOutput(input)
       end
     end
   end
-
+  -- print('INTENSITY', intensity)
+  -- print(template)
   return self.output
 end
 
@@ -126,6 +127,7 @@ end
 --]]
 
 function ACR:updateGradInput(input, gradOutput)
+  print('ACR gradOutput', gradOutput:sum())
   --print('ACR grad')
   local bsize = self.bsize
   local template = input[1]:reshape(bsize, math.sqrt(input[1]:size()[2]), math.sqrt(input[1]:size()[2]))
@@ -190,6 +192,8 @@ function ACR:updateGradInput(input, gradOutput)
 
   self.gradInput = {self.gradTemplate, self.finalgradPose}
   -- print('ACR GRAD POSE', torch.sum(intensity))
+  print('ACR gradTemplate', self.gradTemplate:sum(), torch.max(self.gradTemplate), torch.min(self.gradTemplate))
+  print('ACR gradPose', self.gradPose:sum())
   return self.gradInput
 end
 
